@@ -147,8 +147,10 @@ LB.initUI = function (game) {
   // keep the overlay exactly on top of the canvas
   const sync = () => {
     const c = game.canvas; if (!c) return;
-    const r = c.getBoundingClientRect();
-    Object.assign(root.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+    // The overlay is laid out at the game's own size (960×704) and scaled to match the canvas,
+    // so the top bar and windows shrink and grow together with the game.
+    const r = c.getBoundingClientRect(), k = r.width / 960;
+    Object.assign(root.style, { left: r.left + 'px', top: r.top + 'px', width: '960px', height: '704px', transform: `scale(${k})`, transformOrigin: '0 0' });
   };
   game.scale.on('resize', sync); window.addEventListener('resize', sync); setInterval(sync, 500); setTimeout(sync, 50);
 

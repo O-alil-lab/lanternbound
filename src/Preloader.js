@@ -51,8 +51,13 @@ class PreloaderScene extends Phaser.Scene {
       const pts = []; for (let i = 0; i < 8; i++) { const r = i % 2 ? 4 : 13, a = i * Math.PI / 4 - Math.PI / 2; pts.push({ x: 13 + Math.cos(a) * r, y: 13 + Math.sin(a) * r }); }
       g.fillPoints(pts, true);
     });
-    make('glow', 128, 128, g => { for (let r = 64; r > 0; r -= 4) { g.fillStyle(0xffffff, 0.05); g.fillCircle(64, 64, r); } });
     g.destroy();
+
+    // Soft round glow (white, tinted at runtime)
+    const gt = this.textures.createCanvas('glow', 128, 128), gc = gt.getContext();
+    const grad = gc.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, 'rgba(255,255,255,0.9)'); grad.addColorStop(0.4, 'rgba(255,255,255,0.35)'); grad.addColorStop(1, 'rgba(255,255,255,0)');
+    gc.fillStyle = grad; gc.fillRect(0, 0, 128, 128); gt.refresh();
 
     // Lantern: brass frame + white crystal (tinted to each lantern's color)
     const lf = this.textures.createCanvas('lantern_frame', 46, 60), c = lf.getContext();
