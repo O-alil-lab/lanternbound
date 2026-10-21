@@ -19,6 +19,11 @@ JavaScript, no build step. Six trainers, eighteen companions drawn as paper-styl
   outline), and the camera can turn around you.
 - "HD-2D" picture finish: bloom, tilt-shift blur, vignette and a colour grade per stage
   (switches itself off on slow devices; G toggles it).
+- **Three languages**: English, Français, العربية (right-to-left layout), chosen on the title screen or with
+  the language button in game. Texts live in `src/i18n.js`.
+- **Fits every screen**: phones (upright or sideways), tablets and computers get their own HUD size,
+  touch controls, camera distance and render resolution; notches and rounded corners are respected;
+  full-screen button on phones.
 - Adaptive synthesized music per stage (calm, combat and alpha layers), ambience (birds, river, cave
   drips, lava, crickets, owls), footsteps by surface, reverb.
 
@@ -55,6 +60,8 @@ src/                  shared plain scripts
   data.js           ★ companions, moves, types, lanterns, trainers, wild zones, combat tuning
   state.js            stats, XP, save / load, damage formula
   map.js            ★ the valley layout (30×22 tile grid, legend at the top)
+  i18n.js           ★ all texts in English, French and Arabic
+  screen.js           device type, HUD scale, safe areas, camera distance, full screen
   stages.js         ★ the other stages: maps, looks, wild zones, alphas, unlock rules
   story.js          ★ dialogue and trainer teams
   ui.js               dialog, party, journal, shop windows, touch controls

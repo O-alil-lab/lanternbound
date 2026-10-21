@@ -37,8 +37,8 @@ LB.norm = function (g) {
   return g;
 };
 LB.save = function (silent) {
-  try { localStorage.setItem('lanternbound', JSON.stringify(LB.G)); if (!silent) LB.toast('Game saved'); }
-  catch (e) { if (!silent) LB.toast('Saving is not available here'); }
+  try { localStorage.setItem('lanternbound', JSON.stringify(LB.G)); if (!silent) LB.toast(LB.t('Game saved')); }
+  catch (e) { if (!silent) LB.toast(LB.t('Saving is not available here')); }
 };
 LB.load = function () {
   try { const s = localStorage.getItem('lanternbound'); return s ? JSON.parse(s) : null; } catch (e) { return null; }

@@ -76,7 +76,7 @@ export class Actor {
     if (this.m) { this.t = LB.MON[this.m.sp].t; this.style = LB.STYLE[this.t]; if (this.m.hpA == null) this.m.hpA = LB.unitMaxHp(this.m); }
     if (this.m && (this.kind === 'wild' || this.kind === 'boss')) {
       this.label = document.createElement('div'); this.label.className = 'ubar' + (this.kind === 'boss' || o.alpha ? ' boss' : '');
-      this.label.innerHTML = `<span class="lv">${o.alpha ? 'ALPHA ' : ''}Lv${this.m.lvl}</span><div class="b"><i></i></div><div class="pr"></div>`;
+      this.label.innerHTML = `<span class="lv">${o.alpha ? LB.t('ALPHA') + ' ' : ''}${LB.t('Lv')}${this.m.lvl}</span><div class="b"><i></i></div><div class="pr"></div>`;
       document.getElementById('lb-labels').appendChild(this.label);
       this.fill = this.label.querySelector('i'); this.prompt = this.label.querySelector('.pr');
     }

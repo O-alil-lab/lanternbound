@@ -258,6 +258,6 @@ LB.toggleMute = function () {
   try { localStorage.setItem('lb_audio', LB.audioMode); } catch (e) {}
   init(); applyMode();
   if (LB.updHud) LB.updHud();
-  LB.toast && LB.toast(['Sound: music + effects', 'Sound: effects only', 'Sound: off'][LB.audioMode]);
+  LB.toast && LB.toast(LB.t(['Sound: music + effects', 'Sound: effects only', 'Sound: off'][LB.audioMode]));
   LB.SFX.sel();
 };

@@ -90,6 +90,9 @@ const CSS = `
 .sw-ember{background:radial-gradient(ellipse at 50% 80%,#ff7a2a 0 18%,transparent 40%),linear-gradient(180deg,#5a2414,#2a1410 60%,#3b3230)}
 .sw-lake{background:radial-gradient(circle at 25% 25%,#f4f6ff 0 7%,transparent 8%),linear-gradient(180deg,#1a2a55,#0b1530 55%,#3a6ea8 56%,#22303a)}
 #lb-screen .btn{margin-top:14px}
+#lb-screen .langs{display:flex;gap:6px;margin:10px 0 0;flex-wrap:wrap;justify-content:center}
+#lb-screen .lang{background:rgba(245,239,226,.92);border:2px solid #3b2f20;border-radius:99px;padding:5px 14px;font-weight:900;font-size:14px;cursor:pointer;font-family:Nunito,Cairo,sans-serif;color:#2b2418}
+#lb-screen .lang.on{background:#2f4f4c;color:#fff;box-shadow:0 0 0 3px #ffc46e}
 #lb-stagecard{position:fixed;left:50%;top:22%;transform:translate(-50%,-10px);z-index:12;pointer-events:none;text-align:center;opacity:0;transition:opacity .6s,transform .6s;font-family:Fraunces,serif;color:#fff;text-shadow:0 3px 0 #2b2418,0 0 24px rgba(0,0,0,.6)}
 #lb-stagecard.on{opacity:1;transform:translate(-50%,0)}
 #lb-stagecard b{display:block;font-size:clamp(30px,6vw,58px);font-weight:800;letter-spacing:1px}
@@ -97,6 +100,7 @@ const CSS = `
 #lb-stagecard small{display:block;font-family:Nunito,sans-serif;font-weight:800;letter-spacing:3px;text-transform:uppercase;font-size:12px;color:#ffc46e}
 `;
 
+const HELP = '<b>WASD</b> move · <b>Left-click / J</b> weapon (hold with the wand to charge) · <b>1 2 3</b> weapons<br><b>Right-click / K</b> companion attack · <b>L</b> special · <b>Space</b> roll<br><b>E</b> aim + throw lantern (<b>R</b> type) · <b>Q</b> switch companion · <b>H</b> salve · <b>F</b> talk / gate<br><b>Z X</b> turn camera · <b>G</b> graphics · <b>?</b> help'.replace(/"/g, '&quot;');
 const HEART = full => `<svg viewBox="0 0 26 24"><path d="M13 22 C4 15 1 11 1 7 A6 6 0 0 1 13 4 A6 6 0 0 1 25 7 C25 11 22 15 13 22Z" fill="${full ? '#e0533f' : '#5c4a3a'}" stroke="#2b2418" stroke-width="2"/></svg>`;
 
 export function initHud(game) {
@@ -108,15 +112,13 @@ export function initHud(game) {
     <div class="party"></div><div class="info"></div><div class="banner"></div>
     <div class="weapons">${Object.keys(WEAPONS).map(k => `<div class="wslot" data-w="${k}"><span class="k">${WEAPONS[k].key}</span>${ICON[k]}<span class="lv"></span><div class="cd"></div><div class="chg"><i></i></div></div>`).join('')}</div>
     <div class="skills">
-      <div class="sk" data-s="pet">K<small>Companion</small><div class="cd"></div></div>
-      <div class="sk" data-s="spc">L<small>Special</small><div class="cd"></div></div>
-      <div class="sk" data-s="dodge">Space<small>Roll</small><div class="cd"></div></div>
-      <div class="sk" data-s="lan">E<small>Lantern</small><div class="cd"></div></div>
+      <div class="sk" data-s="pet">K<small data-i18n="Companion">Companion</small><div class="cd"></div></div>
+      <div class="sk" data-s="spc">L<small data-i18n="Special">Special</small><div class="cd"></div></div>
+      <div class="sk" data-s="dodge">Space<small data-i18n="Roll">Roll</small><div class="cd"></div></div>
+      <div class="sk" data-s="lan">E<small data-i18n="Lantern">Lantern</small><div class="cd"></div></div>
     </div>
-    <div class="help"><b>WASD</b> move · <b>Left-click / J</b> weapon (hold with the wand to charge) · <b>1 2 3</b> weapons<br>
-      <b>Right-click / K</b> companion attack · <b>L</b> special · <b>Space</b> roll<br>
-      <b>E</b> aim + throw lantern (<b>R</b> type) · <b>Q</b> switch companion · <b>H</b> salve · <b>F</b> talk / gate<br><b>Z X</b> turn camera · <b>G</b> graphics · <b>?</b> help</div>`;
-  document.body.appendChild(hud);
+    <div class="help" data-i18n-html="${HELP}"></div>`;
+  document.body.appendChild(hud); LB.applyI18n(hud);
   hud.querySelectorAll('.wslot').forEach(el => el.addEventListener('pointerdown', e => { e.preventDefault(); game.selectWeapon(el.dataset.w); }));
   const screen = document.createElement('div'); screen.id = 'lb-screen'; document.body.appendChild(screen);
   setTimeout(() => { const h = hud.querySelector('.help'); if (h) h.style.opacity = 0; }, 30000);
@@ -131,7 +133,7 @@ export function updateHud(game) {
   const G = LB.G, hud = document.getElementById('hud3d'); if (!G || !hud.classList.contains('on')) return;
   const q = s => hud.querySelector(s);
   const a = game.ally && game.ally.m;
-  const sig = [G.hearts, a && a.sp, G.party.map(m => m.sp + m.lvl).join(), G.weapon, JSON.stringify(G.weapons)].join('|');
+  const sig = [LB.lang, G.hearts, a && a.sp, G.party.map(m => m.sp + m.lvl).join(), G.weapon, JSON.stringify(G.weapons)].join('|');
   if (sig !== lastSig) {
     lastSig = sig;
     q('.hearts').innerHTML = Array.from({ length: LB.MAX_HEARTS }, (_, i) => HEART(i < G.hearts)).join('');
@@ -139,44 +141,46 @@ export function updateHud(game) {
     hud.querySelectorAll('.wslot').forEach(el => {
       const k = el.dataset.w, lv = G.weapons[k] || 0;
       el.classList.toggle('sel', G.weapon === k); el.classList.toggle('lock', !lv);
-      el.querySelector('.lv').textContent = lv ? 'Lv' + lv : '🔒';
+      el.querySelector('.lv').textContent = lv ? LB.t('Lv') + lv : '🔒';
     });
   }
   if (a) {
     const img = q('.lead img'); const src = LB.compImg(a.sp); if (img.getAttribute('src') !== src) img.setAttribute('src', src);
-    q('.lead .nm span').textContent = a.sp; q('.lead .nm small').textContent = 'Lv ' + a.lvl;
+    q('.lead .nm span').textContent = a.sp; q('.lead .nm small').textContent = LB.t('Lv') + ' ' + a.lvl;
     const v = Math.max(0, a.hpA) / LB.unitMaxHp(a);
     q('.lead .bar i').style.width = v * 100 + '%'; q('.lead .bar i').style.background = v > .5 ? '#5aa340' : v > .2 ? '#d9a634' : '#c8452f';
     q('.lead .xp i').style.width = Math.min(1, a.xp / LB.need(a.lvl)) * 100 + '%';
-  } else { q('.lead .nm span').textContent = 'No companion'; q('.lead .nm small').textContent = ''; }
+  } else { q('.lead .nm span').textContent = LB.t('No companion'); q('.lead .nm small').textContent = ''; }
   hud.querySelectorAll('.party i').forEach((el, i) => { const m = G.party[i]; if (!m) return; const v = Math.max(0, m.hpA) / LB.unitMaxHp(m); el.style.width = 36 * v + 'px'; el.style.background = v > .5 ? '#5aa340' : v > .2 ? '#d9a634' : '#c8452f'; el.parentElement.style.opacity = m.hpA > 0 ? 1 : .45; });
   const L = LB.LANTERNS[G.lanternSel] || LB.LANTERNS.lantern;
-  q('.info').innerHTML = `<span style="color:${L.col};text-shadow:0 0 1px #2b2418">◆</span> ${L.n} ×${G.items[G.lanternSel] || 0} <small>(R)</small><br>Salves ${G.items.salve} · Coins ${G.coins}`;
+  q('.info').innerHTML = `<span style="color:${L.col};text-shadow:0 0 1px #2b2418">◆</span> ${LB.t(L.n)} ×${G.items[G.lanternSel] || 0} <small>(R)</small><br>${LB.t('Salves')} ${G.items.salve} · ${LB.t('Coins')} ${G.coins}`;
   const cd = (el, v) => { el.style.background = v > 0 ? `conic-gradient(rgba(43,36,24,.6) ${v * 360}deg, transparent 0)` : 'none'; };
   hud.querySelectorAll('.wslot').forEach(el => { const k = el.dataset.w; cd(el.querySelector('.cd'), k === G.weapon ? Math.max(0, game.wCd / game.wCdMax) : 0);
     const chg = el.querySelector('.chg'); chg.style.display = k === 'wand' && game.charging ? 'block' : 'none'; if (game.charging) chg.firstChild.style.width = game.charge * 100 + '%'; });
   const sk = { pet: [game.petCd, 1], spc: [game.spcCd, 4], dodge: [game.rollCd, .75], lan: [0, 1] };
   hud.querySelectorAll('.sk').forEach(el => { const [c, m] = sk[el.dataset.s]; cd(el.querySelector('.cd'), Math.max(0, c / m)); });
-  q('.banner').textContent = game.fight && game.fight.cur ? `${game.fight.npc.who}'s ${game.fight.cur.m.sp} · ${game.fight.team.length} left` : game.aiming ? 'Aim… E or click to throw' : game.capture ? 'Press SPACE when the gold ring meets the white ring!' : '';
+  q('.banner').textContent = game.fight && game.fight.cur ? LB.t("{w}'s {c} · {n} left", { w: game.fight.npc.who, c: game.fight.cur.m.sp, n: game.fight.team.length }) : game.aiming ? LB.t(LB.touch ? 'Aim… tap 🏮 to throw' : 'Aim… E or click to throw') : game.capture ? LB.t(LB.touch ? 'Tap when the gold ring meets the white ring!' : 'Press SPACE when the gold ring meets the white ring!') : '';
 }
 
 // ---------- screens ----------
 export function loading(p) {
   const s = document.getElementById('lb-screen');
   if (p === null) { s.classList.remove('on'); return; }
-  if (!s.querySelector('.bar')) s.innerHTML = '<h2>Lighting the lanterns…</h2><div class="bar"><i></i></div>';
+  if (!s.querySelector('.bar')) s.innerHTML = '<h2>' + LB.t('Lighting the lanterns…') + '</h2><div class="bar"><i></i></div>';
   s.classList.add('on'); s.querySelector('.bar i').style.width = p * 100 + '%';
 }
+const langPicker = () => `<div class="langs">${Object.entries(LB.LANGS).map(([k, n]) => `<button class="lang ${k === LB.lang ? 'on' : ''}" data-l="${k}">${n}</button>`).join('')}</div>`;
 export function titleScreen(onPick, onContinue) {
   const s = document.getElementById('lb-screen'), save = LB.load();
-  s.innerHTML = `<h1>Lantern<span>bound</span></h1><p>Choose your trainer</p><div class="row">${Object.keys(LB.TRAINERS).map(n => `<div class="tcard" data-n="${n}"><img src="${LB.trainerImg(n)}" alt=""><b>${n}</b></div>`).join('')}</div>${save && save.party && save.party.length ? `<button class="btn">Continue as ${save.player}</button>` : ''}`;
+  s.innerHTML = `<h1>Lantern<span>bound</span></h1>${langPicker()}<p>${LB.t('Choose your trainer')}</p><div class="row">${Object.keys(LB.TRAINERS).map(n => `<div class="tcard" data-n="${n}"><img src="${LB.trainerImg(n)}" alt=""><b>${n}</b></div>`).join('')}</div>${save && save.party && save.party.length ? `<button class="btn">${LB.t('Continue as {n}', { n: save.player })}</button>` : ''}`;
   s.classList.add('on');
   s.querySelectorAll(".tcard").forEach(c => c.onclick = () => { LB.SFX.sel(); onPick(c.dataset.n); });
   const b = s.querySelector('.btn'); if (b) b.onclick = () => { LB.SFX.sel(); onContinue(save); };
+  s.querySelectorAll('.lang').forEach(x => x.onclick = () => { LB.SFX.sel(); LB.setLang(x.dataset.l); titleScreen(onPick, onContinue); });
 }
 export function starterScreen(onPick) {
   const s = document.getElementById('lb-screen');
-  s.innerHTML = `<h2>Choose your first companion</h2><p>Your rival will take the one that beats yours.</p><div class="row">${LB.STARTERS.map(sp => { const M = LB.MON[sp]; return `<div class="tcard big" data-s="${sp}"><img src="${LB.compImg(sp)}" alt=""><b>${sp}</b><span class="pill" style="background:${LB.TYPE_COLOR[M.t]}">${M.t}</span><div class="d">${M.d}</div></div>`; }).join('')}</div>`;
+  s.innerHTML = `<h2>${LB.t('Choose your first companion')}</h2><p>${LB.t('Your rival will take the one that beats yours.')}</p><div class="row">${LB.STARTERS.map(sp => { const M = LB.MON[sp]; return `<div class="tcard big" data-s="${sp}"><img src="${LB.compImg(sp)}" alt=""><b>${sp}</b><span class="pill" style="background:${LB.TYPE_COLOR[M.t]}">${LB.t(M.t)}</span><div class="d">${LB.t(M.d)}</div></div>`; }).join('')}</div>`;
   s.querySelectorAll(".tcard").forEach(c => c.onclick = () => { LB.SFX.caught(); onPick(c.dataset.s); });
 }
 export function hideScreen() { document.getElementById('lb-screen').classList.remove('on'); }
@@ -189,19 +193,19 @@ export function installShop(game) {
     const draw = () => {
       const G = LB.G, list = document.getElementById('shopList');
       let box = list.parentElement.querySelector('.wshop'); if (box) box.remove();
-      box = document.createElement('div'); box.className = 'wshop'; box.innerHTML = '<h4>Weapons</h4><div class="plist"></div>';
+      box = document.createElement('div'); box.className = 'wshop'; box.innerHTML = '<h4>' + LB.t('Weapons') + '</h4><div class="plist"></div>';
       list.parentElement.appendChild(box);
       const L = box.querySelector('.plist');
       Object.keys(WEAPONS).forEach(k => {
         const W = WEAPONS[k], lv = G.weapons[k] || 0;
         const price = lv === 0 ? W.buy : UPGRADE_COST[lv];
-        const label = lv === 0 ? 'Buy' : lv >= 3 ? 'Max' : 'Upgrade to Lv' + (lv + 1);
+        const label = lv === 0 ? LB.t('Buy') : lv >= 3 ? LB.t('Max') : LB.t('Upgrade to Lv{n}', { n: lv + 1 });
         const r = document.createElement('div'); r.className = 'shoprow';
-        r.innerHTML = `<div class="ic">${ICON[k]}</div><div class="info"><b class="nm">${W.n}</b> <span class="small">· ${lv ? 'Lv ' + lv : 'not owned'} · ${W.t} type</span><div>${W.d}</div></div><button ${lv >= 3 || G.coins < price ? 'disabled' : ''}>${label}${lv < 3 ? ` <span class="coin"></span> ${price}` : ''}</button>`;
+        r.innerHTML = `<div class="ic">${ICON[k]}</div><div class="info"><b class="nm">${LB.t(W.n)}</b> <span class="small">· ${lv ? LB.t('Lv') + ' ' + lv : LB.t('not owned')} · ${LB.t('{t} type', { t: LB.t(W.t) })}</span><div>${LB.t(W.d)}</div></div><button ${lv >= 3 || G.coins < price ? 'disabled' : ''}>${label}${lv < 3 ? ` <span class="coin"></span> ${price}` : ''}</button>`;
         r.querySelector('button').onclick = () => {
           if (lv >= 3 || G.coins < price) return;
           G.coins -= price; G.weapons[k] = lv + 1; if (!lv) G.weapon = k; LB.SFX.coin(); game.refreshWeapon();
-          document.getElementById('shopCoins').innerHTML = `· <span class="coin"></span> ${G.coins} coins`; draw();
+          document.getElementById('shopCoins').innerHTML = `· <span class="coin"></span> ${LB.t('{n} coins', { n: G.coins })}`; draw();
         };
         L.appendChild(r);
       });

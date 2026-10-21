@@ -19,7 +19,7 @@ class Game {
     LB.useStage('valley');
     LB.initUI(null);
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+    this.renderer.setPixelRatio(LB.screen.pixelRatio());
     this.renderer.setSize(innerWidth, innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.05;
@@ -28,7 +28,8 @@ class Game {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, .1, 400);
     this.camera.position.set(10, 12, 40);
-    addEventListener('resize', () => { this.camera.aspect = innerWidth / innerHeight; this.camera.updateProjectionMatrix(); this.renderer.setSize(innerWidth, innerHeight); this.post && this.post.resize(); });
+    const fit = () => { this.renderer.setPixelRatio(LB.screen.pixelRatio()); this.camera.aspect = innerWidth / innerHeight; this.camera.updateProjectionMatrix(); this.renderer.setSize(innerWidth, innerHeight); this.post && this.post.resize(); };
+    LB.screen.onResize.push(fit); addEventListener('resize', fit);
     this.post = new Post(this.renderer, this.scene, this.camera);
     initHud(this); installShop(this);
     this.glowTex = glowTexture();
@@ -65,12 +66,12 @@ class Game {
   async intro() {
     const G = LB.G, R = G.roles;
     await LB.dialog([
-      `Welcome to Hollow Village, ${G.player}. I'm ${R.mentor}.`,
-      `${G.starter} has chosen you. It will follow you and fight by your side.`,
-      'Your Crystal Staff swings with left-click or J. Click three times for a combo. Your companion attacks with right-click or K, and L is its special move.',
-      'Wild companions roam the tall grass. A red shape on the ground shows where they are about to strike, so roll away with Space!',
-      'Knock one out and it gets dazed. Press E to aim a lantern, throw it, then press Space each time the gold ring meets the white ring. Three hits and it joins you!',
-      `${R.ranger} guards the meadow gate to the north. The Lantern Stall sells lanterns, a Sling and a Crystal Wand.`
+      LB.t("Welcome to Hollow Village, {p}. I'm {m}.", { p: G.player, m: R.mentor }),
+      LB.t('{s} has chosen you. It will follow you and fight by your side.', { s: G.starter }),
+      LB.t(LB.touch ? 'Your Crystal Staff swings with the A button. Tap three times for a combo. Your companion fights on its own, and SP is its special move.' : 'Your Crystal Staff swings with left-click or J. Click three times for a combo. Your companion attacks with right-click or K, and L is its special move.'),
+      LB.t(LB.touch ? 'Wild companions roam the tall grass. A red shape on the ground shows where they are about to strike, so roll away with ⤳!' : 'Wild companions roam the tall grass. A red shape on the ground shows where they are about to strike, so roll away with Space!'),
+      LB.t(LB.touch ? 'Knock one out and it gets dazed. Tap 🏮 to aim a lantern, tap again to throw, then tap each time the gold ring meets the white ring. Three hits and it joins you!' : 'Knock one out and it gets dazed. Press E to aim a lantern, throw it, then press Space each time the gold ring meets the white ring. Three hits and it joins you!'),
+      LB.t('{r} guards the meadow gate to the north. The Lantern Stall sells lanterns, a Sling and a Crystal Wand.', { r: R.ranger })
     ], R.mentor);
     LB.save(true);
   }
@@ -88,6 +89,7 @@ class Game {
     LB.mode = 'world'; LB.world = this;
     this.lastZone = '';
     this.spawnAlpha();
+    LB.screen.hintOrientation();
     if (isNew) setTimeout(() => this.intro(), 600);
   }
   // ---------------- stages ----------------
@@ -115,23 +117,23 @@ class Game {
   stageCard(st) {
     let el = document.getElementById('lb-stagecard');
     if (!el) { el = document.createElement('div'); el.id = 'lb-stagecard'; document.body.appendChild(el); }
-    el.innerHTML = `<small>${st.lv ? 'Level ' + st.lv : ''}</small><b>${st.name}</b><span>${st.sub}</span>`;
+    el.innerHTML = `<small>${st.lv ? LB.t('Level {n}', { n: st.lv }) : ''}</small><b>${LB.t(st.name)}</b><span>${LB.t(st.sub)}</span>`;
     el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
     clearTimeout(this.cardT); this.cardT = setTimeout(() => el.classList.remove('on'), 3200);
   }
   portalMenu() {
     const G = LB.G, s = document.getElementById('lb-screen'); LB.mode = 'busy'; this.player.vel.set(0, 0);
-    s.innerHTML = `<h2>Lantern Gate</h2><p>Where should the gate take you?</p><div class="row">${LB.STAGE_ORDER.map(id => {
+    s.innerHTML = `<h2>${LB.t('Lantern Gate')}</h2><p>${LB.t('Where should the gate take you?')}</p><div class="row">${LB.STAGE_ORDER.map(id => {
       const st = LB.STAGES[id], open = st.unlocked(G), here = id === LB.STAGE, a = st.alpha;
-      const badge = a ? (G.alphaCaught[id] ? '★ Alpha caught' : G.alphas[id] ? '✓ Alpha beaten' : 'Alpha: ' + a.sp) : '';
-      return `<div class="tcard stage ${open ? '' : 'lock'} ${here ? 'here' : ''}" data-id="${id}"><div class="sw sw-${id}"></div><b>${st.name}</b><small>Lv ${st.lv}</small><small>${open ? (here ? 'You are here' : badge) : '🔒 ' + st.lockText}</small></div>`;
-    }).join('')}</div><button class="btn" id="gateX">Stay here</button>`;
+      const badge = a ? (G.alphaCaught[id] ? '★ ' + LB.t('Alpha caught') : G.alphas[id] ? '✓ ' + LB.t('Alpha beaten') : LB.t('Alpha: {c}', { c: a.sp })) : '';
+      return `<div class="tcard stage ${open ? '' : 'lock'} ${here ? 'here' : ''}" data-id="${id}"><div class="sw sw-${id}"></div><b>${LB.t(st.name)}</b><small>${LB.t('Lv')} ${st.lv}</small><small>${open ? (here ? LB.t('You are here') : badge) : '🔒 ' + LB.t(st.lockText)}</small></div>`;
+    }).join('')}</div><button class="btn" id="gateX">${LB.t('Stay here')}</button>`;
     s.classList.add('on');
     const close = () => { s.classList.remove('on'); LB.mode = 'world'; LB.lastDialogEnd = performance.now(); };
     s.querySelector('#gateX').onclick = () => { LB.SFX.sel(); close(); };
     s.querySelectorAll('.tcard.stage').forEach(c => c.onclick = () => {
       const id = c.dataset.id;
-      if (!LB.STAGES[id].unlocked(G)) { LB.SFX.bump(); LB.toast(LB.STAGES[id].lockText); return; }
+      if (!LB.STAGES[id].unlocked(G)) { LB.SFX.bump(); LB.toast(LB.t(LB.STAGES[id].lockText)); return; }
       s.classList.remove('on');
       if (id === LB.STAGE) { close(); return; }
       this.travel(id);
@@ -149,7 +151,7 @@ class Game {
     const P = this.player;
     const pick = u.m.hpA < u.maxHp * .5 && !u.called ? 'call' : Math.random() < .5 ? 'slam' : 'nova';
     if (pick === 'call') {   // calls two helpers once, at half health
-      u.called = true; LB.SFX.roar(); this.fx.shake(.4, .5); this.fx.text(new V3(u.x, u.h + 1.4, u.z), 'It calls for help!', '#ffb3a8', 18);
+      u.called = true; LB.SFX.roar(); this.fx.shake(.4, .5); this.fx.text(new V3(u.x, u.h + 1.4, u.z), LB.t('It calls for help!'), '#ffb3a8', 18);
       const Z = Object.values(LB.ZONES).filter(z => z.lv[0] >= 13 && LB.MAP.flat().some(c => LB.ZONES[c] === z));
       for (let i = 0; i < 2; i++) { const z = Z[i % Z.length] || LB.ZONES[','], sp = z.t[LB.rnd(0, z.t.length - 1)]; const m = LB.mk(sp === '*' ? 'Loomtail' : sp, z.lv[0]); m.hpA = LB.unitMaxHp(m);
         const a = i * Math.PI + rand(-.4, .4), x = u.x + Math.cos(a) * 3, zz = u.z + Math.sin(a) * 3; if (this.solidAt(x, zz)) continue;
@@ -162,7 +164,7 @@ class Game {
       m.rotation.x = -Math.PI / 2; m.position.set(p.x, .08, p.z); this.scene.add(m);
       this.fx.temp.push({ m, life: dur, max: dur, upd: k => { m.material.opacity = .12 + .35 * k; m.scale.setScalar(.3 + .7 * Math.min(1, k * 1.6)); } });
       this.windup(u, dur * .7, () => {
-        u.lift = 0; this.fx.text(new V3(u.x, u.h + 1, u.z), 'SLAM!', '#ffb3a8', 20);
+        u.lift = 0; this.fx.text(new V3(u.x, u.h + 1, u.z), LB.t('SLAM!'), '#ffb3a8', 20);
         setTimeout(() => {
           if (u.dead) return;
           LB.SFX.boom(); this.fx.shake(.6, .35); this.fx.ring(p, '#ffb36a', .4, R + .6, .5); this.fx.burst(u.t, new V3(p.x, .3, p.z), 30, 1.4);
@@ -224,14 +226,14 @@ class Game {
     const m = this.lead(); if (!m) return;
     const i = LB.G.party.indexOf(m); if (i > 0) { LB.G.party.splice(i, 1); LB.G.party.unshift(m); }
     this.ally = new Actor(this, { kind: 'ally', m, x: this.player.x - 1, z: this.player.z + .6 });
-    if (fromSwitch) { this.fx.burst('Glimmer', new V3(this.ally.x, 1, this.ally.z), 16); LB.toast(`Go, ${m.sp}!`); }
+    if (fromSwitch) { this.fx.burst('Glimmer', new V3(this.ally.x, 1, this.ally.z), 16); LB.toast(LB.t('Go, {c}!', { c: m.sp })); }
   }
   cycleAlly() { const G = LB.G, alive = G.party.filter(m => m.hpA > 0); if (alive.length < 2) return; const m = alive[1]; G.party.splice(G.party.indexOf(m), 1); G.party.unshift(m); this.spawnAlly(true); LB.SFX.sel(); }
   spawnAllyIfChanged() { if (!this.ally || this.ally.m !== this.lead()) this.spawnAlly(); }
   useSalve() {
-    const G = LB.G; if (G.items.salve <= 0) { LB.toast('No salves left'); return; }
+    const G = LB.G; if (G.items.salve <= 0) { LB.toast(LB.t('No salves left')); return; }
     const a = this.ally && this.ally.m; const target = a && a.hpA < LB.unitMaxHp(a) ? a : G.party.find(m => m.hpA < LB.unitMaxHp(m));
-    if (!target && G.hearts >= LB.MAX_HEARTS) { LB.toast('Everyone is healthy'); return; }
+    if (!target && G.hearts >= LB.MAX_HEARTS) { LB.toast(LB.t('Everyone is healthy')); return; }
     G.items.salve--; LB.SFX.heal();
     if (target) { const mx = LB.unitMaxHp(target); target.hpA = Math.min(mx, Math.max(0, target.hpA) + Math.round(mx * .45)); }
     G.hearts = Math.min(LB.MAX_HEARTS, G.hearts + 1);
@@ -240,7 +242,7 @@ class Game {
 
   // ---------------- weapons ----------------
   selectWeapon(k) {
-    const G = LB.G; if (!G || !(G.weapons[k] > 0)) { if (G) LB.toast(`${WEAPONS[k].n}: buy it at the Lantern Stall`); return; }
+    const G = LB.G; if (!G || !(G.weapons[k] > 0)) { if (G) LB.toast(LB.t('{w}: buy it at the Lantern Stall', { w: LB.t(WEAPONS[k].n) })); return; }
     G.weapon = k; this.refreshWeapon(); LB.SFX.sel();
   }
   refreshWeapon() {
@@ -349,8 +351,8 @@ class Game {
     u.kb.set(dx / d * kb, dz / d * kb);
     const p = new V3(u.x, u.h * .55, u.z);
     this.fx.burst(r.t || 'Plain', p, r.e > 1 ? 20 : 11);
-    this.fx.text(new V3(u.x + rand(-.3, .3), u.h + .3, u.z), (r.crit ? 'CRIT ' : '') + r.dmg, r.e > 1 ? '#ffd23f' : r.e < 1 ? '#cfc8ba' : '#ffffff', r.e > 1 || r.crit ? 26 : 19);
-    if (r.e > 1) this.fx.text(new V3(u.x, u.h + .9, u.z), 'SUPER!', '#ffd23f', 15);
+    this.fx.text(new V3(u.x + rand(-.3, .3), u.h + .3, u.z), (r.crit ? LB.t('CRIT') + ' ' : '') + r.dmg, r.e > 1 ? '#ffd23f' : r.e < 1 ? '#cfc8ba' : '#ffffff', r.e > 1 || r.crit ? 26 : 19);
+    if (r.e > 1) this.fx.text(new V3(u.x, u.h + .9, u.z), LB.t('SUPER!'), '#ffd23f', 15);
     (r.e > 1 ? LB.SFX.super : r.e < 1 ? LB.SFX.weak : LB.SFX.hit)();
     this.fx.shake(u.kind === 'ally' ? .18 : .1, .1);
     this.hitStop = .045;
@@ -366,13 +368,13 @@ class Game {
   knockOut(u) {
     const G = LB.G;
     if (u.kind === 'ally') {
-      LB.SFX.faint(); this.fx.text(new V3(u.x, 2, u.z), `${u.m.sp} is worn out!`, '#ffb3a8', 16);
-      setTimeout(() => { this.spawnAlly(true); if (!this.ally) LB.toast('No companions left: run to the shrine!'); }, 300);
+      LB.SFX.faint(); this.fx.text(new V3(u.x, 2, u.z), LB.t('{c} is worn out!', { c: u.m.sp }), '#ffb3a8', 16);
+      setTimeout(() => { this.spawnAlly(true); if (!this.ally) LB.toast(LB.t('No companions left: run to the shrine!')); }, 300);
       u.dead = true; return;
     }
     LB.SFX.faint();
     const gain = Math.floor((u.m.lvl * 10 + 8) * (u.kind === 'boss' ? 1.5 : 1)), coins = u.m.lvl * (u.kind === 'boss' ? 10 : 4);
-    G.coins += coins; this.fx.text(new V3(u.x, u.h + 1.2, u.z), `+${coins} coins`, '#ffd23f', 15);
+    G.coins += coins; this.fx.text(new V3(u.x, u.h + 1.2, u.z), '+' + LB.t('{n} coins', { n: coins }), '#ffd23f', 15);
     this.giveXp(gain);
     if (u.kind === 'boss') {
       u.state = 'captured'; this.fx.burst('Glimmer', new V3(u.x, 1, u.z), 22);
@@ -384,11 +386,11 @@ class Game {
       u.dazeT = 30; LB.SFX.roar(); this.fx.shake(.5, .4);
       const first = !G.alphas[u.alpha]; G.alphas[u.alpha] = 1;
       const nxt = LB.STAGE_ORDER[LB.STAGE_ORDER.indexOf(u.alpha) + 1];
-      this.fx.text(new V3(u.x, u.h + 2.4, u.z), 'ALPHA DEFEATED!', '#ffd23f', 28);
-      if (first) setTimeout(() => LB.toast(nxt ? `A new path opened: ${LB.STAGES[nxt].name}! Use the Lantern Gate.` : 'You beat every alpha. You are a true Lanternbound!'), 1200);
+      this.fx.text(new V3(u.x, u.h + 2.4, u.z), LB.t('ALPHA DEFEATED!'), '#ffd23f', 28);
+      if (first) setTimeout(() => LB.toast(nxt ? LB.t('A new path opened: {s}! Use the Lantern Gate.', { s: LB.t(LB.STAGES[nxt].name) }) : LB.t('You beat every alpha. You are a true Lanternbound!')), 1200);
       G.items.salve += 2; LB.save(true);
     }
-    this.fx.text(new V3(u.x, u.h + 1.6, u.z), 'Dazed! Throw a lantern (E)', '#9feaf2', 15);
+    this.fx.text(new V3(u.x, u.h + 1.6, u.z), LB.t(LB.touch ? 'Dazed! Throw a lantern (🏮)' : 'Dazed! Throw a lantern (E)'), '#9feaf2', 15);
   }
   giveXp(g) {
     LB.G.party.forEach(m => {
@@ -397,7 +399,7 @@ class Game {
       while (m.xp >= LB.need(m.lvl)) {
         m.xp -= LB.need(m.lvl); const before = LB.unitMaxHp(m); m.lvl++;
         m.hp = LB.statsOf(m).hp; m.hpA = Math.min(LB.unitMaxHp(m), m.hpA + (LB.unitMaxHp(m) - before) + Math.round(LB.unitMaxHp(m) * .3));
-        if (this.ally && m === this.ally.m) { LB.SFX.lvl(); this.fx.burst('Glimmer', new V3(this.ally.x, 1, this.ally.z), 24, 1.2); this.fx.ring(this.ally.pos, '#9feaf2', .3, 3.5, .6); this.fx.text(new V3(this.ally.x, 2.6, this.ally.z), 'LEVEL UP!  Lv ' + m.lvl, '#9feaf2', 20); }
+        if (this.ally && m === this.ally.m) { LB.SFX.lvl(); this.fx.burst('Glimmer', new V3(this.ally.x, 1, this.ally.z), 24, 1.2); this.fx.ring(this.ally.pos, '#9feaf2', .3, 3.5, .6); this.fx.text(new V3(this.ally.x, 2.6, this.ally.z), LB.t('LEVEL UP!') + '  ' + LB.t('Lv') + ' ' + m.lvl, '#9feaf2', 20); }
       }
     });
   }
@@ -408,7 +410,7 @@ class Game {
     LB.healAll(); const G = LB.G, rp = LB.STAGES[LB.STAGE].respawn || [4, 19]; G.x = rp[0]; G.y = rp[1]; const c = tileCenter(rp[0], rp[1]);
     this.player.pos.set(c.x, 0, c.z); this.spawnAlly(); this.camTarget.set(c.x, 0, c.z); this.spawnAlpha();
     this.fade.style.opacity = 0; LB.mode = 'world'; this.blacking = false;
-    await LB.dialog(['Everything went dark…', 'You wake up beside the shrine. Everyone is rested now.']);
+    await LB.dialog([LB.t('Everything went dark…'), LB.t('You wake up beside the shrine. Everyone is rested now.')]);
     LB.save(true);
   }
   clearWild() { this.wild.forEach(u => u.destroy()); this.wild = []; this.shots.forEach(s => this.removeShot(s)); this.shots = []; }
@@ -430,7 +432,7 @@ class Game {
     const a = this.ally; if (!a || this.spcCd > 0) return;
     const aim = this.aimDir(9); const tgt = aim.unit; const tx = tgt ? tgt.x : aim.point.x, tz = tgt ? tgt.z : aim.point.z;
     const k = LB.specialMove(a.m.sp); this.spcCd = 4;
-    this.fx.text(new V3(a.x, a.h + .6, a.z), LB.MOVES[k].n + '!', '#ffe7a0', 18);
+    this.fx.text(new V3(a.x, a.h + .6, a.z), LB.t(LB.MOVES[k].n) + '!', '#ffe7a0', 18);
     if (a.style.kind === 'shot') {
       const base = Math.atan2(tz - a.z, tx - a.x);
       const col = { Ember: '#ff8a3c', Tide: '#4aa8e0', Gale: '#e8eeff', Glimmer: '#e4b8ff' }[a.t] || '#ffffff';
@@ -489,7 +491,7 @@ class Game {
     if (u.state === 'dazed') {
       u.dazeT -= dt; u.vel.set(0, 0); u.pivot.rotation.z = Math.sin(this.t * 6) * .18;
       if ((u.starT = (u.starT || 0) - dt) <= 0) { u.starT = .25; this.fx.burst('Glimmer', new V3(u.x, u.h + .2, u.z), 2, .3); }
-      if (u.dazeT <= 0) { u.state = 'gone'; this.fx.text(new V3(u.x, u.h, u.z), 'It ran away…', '#cfc8ba', 15); u.vanish = .35; }
+      if (u.dazeT <= 0) { u.state = 'gone'; this.fx.text(new V3(u.x, u.h, u.z), LB.t('It ran away…'), '#cfc8ba', 15); u.vanish = .35; }
       return;
     }
     if (u.state === 'gone') return;
@@ -539,7 +541,7 @@ class Game {
   // ---------------- lanterns & capture ----------------
   startAim() {
     const G = LB.G;
-    if (!(G.items[G.lanternSel] > 0)) { const k = Object.keys(LB.LANTERNS).find(k => G.items[k] > 0); if (!k) { LB.toast('No lanterns! Buy some at the stall'); return; } G.lanternSel = k; }
+    if (!(G.items[G.lanternSel] > 0)) { const k = Object.keys(LB.LANTERNS).find(k => G.items[k] > 0); if (!k) { LB.toast(LB.t('No lanterns! Buy some at the stall')); return; } G.lanternSel = k; }
     this.aiming = true; this.reticle.visible = true; this.arcDots.visible = true;
     this.reticle.material.color.set(LB.LANTERNS[G.lanternSel].col);
   }
@@ -575,7 +577,7 @@ class Game {
     this.flying = null; f.lan.rotation.set(0, 0, 0);
     const hit = this.wild.find(u => !u.dead && Math.hypot(f.e.x - u.x, f.e.z - u.z) < u.r + .9);
     if (hit && hit.state === 'dazed') { this.startCapture(hit, f.lan, f.kind); return; }
-    this.fx.text(new V3(f.e.x, 1.4, f.e.z), hit ? (hit.kind === 'boss' ? "Can't befriend a trainer's companion" : 'Too strong! Weaken it first') : 'Missed!', hit ? '#ffb3a8' : '#cfc8ba', 16);
+    this.fx.text(new V3(f.e.x, 1.4, f.e.z), LB.t(hit ? (hit.kind === 'boss' ? "Can't befriend a trainer's companion" : 'Too strong! Weaken it first') : 'Missed!'), hit ? '#ffb3a8' : '#cfc8ba', 16);
     LB.SFX.escape(); this.fx.burst('Plain', f.lan.position, 8); this.scene.remove(f.lan);
   }
   startCapture(u, lan, kind) {
@@ -606,7 +608,7 @@ class Game {
     const c = this.capture; c.waiting = false;
     if (ok) {
       c.pips[c.hits].material.color.set('#9feaf2'); c.hits++; LB.SFX.shake();
-      this.fx.text(new V3(c.u.x, 2.9, c.u.z), ['Good!', 'Great!', 'Perfect!'][c.hits - 1], '#9feaf2', 20);
+      this.fx.text(new V3(c.u.x, 2.9, c.u.z), LB.t(['Good!', 'Great!', 'Perfect!'][c.hits - 1]), '#9feaf2', 20);
       this.fx.ring(c.u.pos, '#9feaf2', 1, 2, .3, .12);
       if (c.hits >= 3) { this.captureWin(); return; }
       c.wait = .35; c.movingM.scale.setScalar(3.2);
@@ -618,8 +620,8 @@ class Game {
     const first = !G.caught[m.sp]; G.caught[m.sp] = 1; if (c.u.alpha) G.alphaCaught[c.u.alpha] = 1;
     m.xp = 0; m.hpA = Math.round(LB.unitMaxHp(m) * .6); m.hp = LB.statsOf(m).hp;
     const full = G.party.length >= 6; if (!full) G.party.push(m); else G.box.push(m);
-    this.fx.text(new V3(c.u.x, 3.3, c.u.z), `${m.sp} joined you!`, '#ffffff', 24);
-    setTimeout(() => { if (first) LB.toast(`${m.sp} added to your journal!`); if (full) LB.toast(`${m.sp} went to rest at the shrine (party full)`); }, 900);
+    this.fx.text(new V3(c.u.x, 3.3, c.u.z), LB.t('{c} joined you!', { c: m.sp }), '#ffffff', 24);
+    setTimeout(() => { if (first) LB.toast(LB.t('{c} added to your journal!', { c: m.sp })); if (full) LB.toast(LB.t('{c} went to rest at the shrine (party full)', { c: m.sp })); }, 900);
     this.captureEnd(true);
   }
   captureEnd(won) {
@@ -629,7 +631,7 @@ class Game {
       setTimeout(() => this.scene.remove(c.lan), 700);
       c.u.destroy(); this.wild.splice(this.wild.indexOf(c.u), 1); LB.save(true);
     } else {
-      LB.SFX.escape(); this.fx.text(new V3(c.u.x, 2.4, c.u.z), 'It broke free!', '#ffb3a8', 20); this.fx.shake(.2, .15);
+      LB.SFX.escape(); this.fx.text(new V3(c.u.x, 2.4, c.u.z), LB.t('It broke free!'), '#ffb3a8', 20); this.fx.shake(.2, .15);
       this.scene.remove(c.lan); c.u.obj.scale.setScalar(1); c.u.pivot.position.y = 0;
       c.u.state = 'dazed'; c.u.dazeT = Math.max(c.u.dazeT, 4.5);
     }
@@ -645,15 +647,15 @@ class Game {
         next() {
           if (g.fight !== f) return;
           const m = f.team.shift();
-          if (!m) { g.fight = null; LB.SFX.win(); LB.toast(`You beat ${npc.who}!`); res(true); return; }
+          if (!m) { g.fight = null; LB.SFX.win(); LB.toast(LB.t('You beat {n}!', { n: npc.who })); res(true); return; }
           m.hpA = LB.unitMaxHp(m);
           const a = Math.atan2(g.player.z - f.cz, g.player.x - f.cx);
           const u = new Actor(g, { kind: 'boss', m, x: f.cx + Math.cos(a) * 2.2, z: f.cz + Math.sin(a) * 2.2 }); u.cd = 1.3;
           g.wild.push(u); f.cur = u; LB.G.seen[m.sp] = 1;
           g.fx.burst('Glimmer', new V3(u.x, 1, u.z), 24); g.fx.ring(u.pos, '#ffd23f', .3, 3.5, .5); LB.SFX.enc();
-          LB.toast(`${npc.who} sends out ${m.sp}!`);
+          LB.toast(LB.t('{n} sends out {c}!', { n: npc.who, c: m.sp }));
         },
-        cancel(silent) { g.fight = null; g.wild.filter(u => u.kind === 'boss').forEach(u => u.destroy()); g.wild = g.wild.filter(u => u.kind !== 'boss'); if (!silent) LB.toast(`${npc.who}: Come back when you're ready!`); res(false); }
+        cancel(silent) { g.fight = null; g.wild.filter(u => u.kind === 'boss').forEach(u => u.destroy()); g.wild = g.wild.filter(u => u.kind !== 'boss'); if (!silent) LB.toast(LB.t("{n}: Come back when you're ready!", { n: npc.who })); res(false); }
       };
       LB.SFX.enc(); this.fx.shake(.2, .2);
       setTimeout(() => f.next(), 500);
@@ -689,7 +691,7 @@ class Game {
     const P = this.player;
     if (P && LB.mode !== 'title') { this.camTarget.lerp(new V3(P.x, 0, P.z), Math.min(1, dt * 6)); this.camOff.lerp(this.capture ? CAM_CAPTURE : CAM_OFF, Math.min(1, dt * 3)); }
     const sh = this.fx.shakeOffset();
-    const zoom = this.camera.aspect < 1 ? 1.75 : this.camera.aspect < 1.3 ? 1.25 : 1;   // pull back on tall/narrow screens
+    const zoom = LB.screen.camZoom(this.camera.aspect);   // pull back on tall/narrow screens (see screen.js)
     this.yaw += (this.yawT - this.yaw) * Math.min(1, dt * 8);
     const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
     const ox = this.camOff.x * cy + this.camOff.z * sy, oz = -this.camOff.x * sy + this.camOff.z * cy;
@@ -705,8 +707,8 @@ class Game {
     const P = this.player; let txt = '', at = null;
     if (LB.mode === 'world') {
       const ni = this.nearInteract();
-      if (ni && !this.fight) { txt = LB.touch ? 'A: Talk' : 'F: Talk'; at = new V3(P.x, 2.6, P.z); }
-      else { const dz = this.wild.find(u => u.state === 'dazed' && dist(P.pos, u.pos) < 10); if (dz && !this.aiming) { txt = LB.touch ? '🏮 Lantern!' : 'E: Lantern!'; at = new V3(dz.x, dz.h + 1.2, dz.z); } }
+      if (ni && !this.fight) { txt = LB.touch ? 'A: ' + LB.t('Talk') : 'F: ' + LB.t('Talk'); at = new V3(P.x, 2.6, P.z); }
+      else { const dz = this.wild.find(u => u.state === 'dazed' && dist(P.pos, u.pos) < 10); if (dz && !this.aiming) { txt = (LB.touch ? '🏮 ' : 'E: ') + LB.t('Lantern!'); at = new V3(dz.x, dz.h + 1.2, dz.z); } }
     }
     if (!txt) { this.promptEl.style.display = 'none'; return; }
     const s = this.fx.project(at); this.promptEl.style.display = ''; this.promptEl.firstChild.textContent = txt;
@@ -741,7 +743,7 @@ class Game {
     let ix = 0, iz = 0;
     if (K.KeyA || K.ArrowLeft) ix -= 1; if (K.KeyD || K.ArrowRight) ix += 1; if (K.KeyW || K.ArrowUp) iz -= 1; if (K.KeyS || K.ArrowDown) iz += 1;
     if (LB.stick && Math.hypot(LB.stick.x, LB.stick.y) > .2) { ix = LB.stick.x; iz = LB.stick.y; }
-    if (Pr.has('KeyG')) LB.toast(this.post.toggle() ? 'Graphics: beautiful' : 'Graphics: fast');
+    if (Pr.has('KeyG')) LB.toast(LB.t(this.post.toggle() ? 'Graphics: beautiful' : 'Graphics: fast'));
     if (Pr.has('KeyZ') || q.includes('camL')) this.yawT -= Math.PI / 4;
     if (Pr.has('KeyX') || q.includes('camR')) this.yawT += Math.PI / 4;
     const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);   // screen-right = (cy,-sy), toward camera = (sy,cy)
@@ -778,7 +780,7 @@ class Game {
     this.wild.forEach(u => { if (u.dead || u.state === 'captured') return; this.orient(u, u.vel.length() > .4 ? u.vel : new V2(P.x - u.x, P.z - u.z)); u.animate(dt, u.vel.length() > .4, this.yaw); });
     Object.values(this.npcs).forEach(n => { this.orient(n, dist(P.pos, n.pos) < 5 ? new V2(P.x - n.x, P.z - n.z) : null); n.animate(rdt, false, this.yaw); });
     G.x = Math.floor(P.x / S); G.y = Math.floor(P.z / S);
-    const z = LB.zoneAt(G.x, G.y); if (z !== this.lastZone) { this.lastZone = z; LB.toast(LB.ZONE_NAMES[z]); }
+    const z = LB.zoneAt(G.x, G.y); if (z !== this.lastZone) { this.lastZone = z; LB.toast(LB.t(LB.ZONE_NAMES[z])); }
   }
   // choose each character's drawing (front / ¾ / side / back) from its direction as seen by the camera
   orient(a, dir) {

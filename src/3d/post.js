@@ -84,7 +84,7 @@ export class Post {
     if (this.enabled && this.composer) {
       this.composer.render(dt);
       // auto quality: if frames stay slow for ~4 s, switch the finish off (unless the player chose it)
-      if (!this.forced) { this.watch += dt; if (dt > 1 / 34) this.slow += dt; if (this.watch > 4) { if (this.slow > 2.6) { this.enabled = false; LB.toast && LB.toast('Graphics: fast mode (G to change)'); } this.watch = this.slow = 0; } }
+      if (!this.forced) { this.watch += dt; if (dt > 1 / 34) this.slow += dt; if (this.watch > 4) { if (this.slow > 2.6) { this.enabled = false; LB.toast && LB.toast(LB.t('Graphics: fast mode (G to change)')); } this.watch = this.slow = 0; } }
     } else this.r.render(this.scene, this.camera);
   }
 }
