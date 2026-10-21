@@ -1,0 +1,6 @@
+{
+  // Cloudflare Workers static site: serves the game files as they are (no build step)
+  "name": "lanternbound",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./" }
+}
