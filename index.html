@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Lanternbound</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="wrap">
+  <div id="game"></div>
+
+  <div id="hud">
+    <div class="grp">
+      <button class="chip" id="bParty">Party</button>
+      <button class="chip" id="bJournal">Journal</button>
+      <button class="chip" id="bSave">Save</button>
+      <button class="chip" id="bMute" title="Sound on/off">♪</button>
+    </div>
+    <div class="grp">
+      <span class="chip" title="Lanterns"><span id="lanIco"></span><span id="nLan">0</span></span>
+      <span class="chip" title="Salves">🌿 <span id="nSal">0</span></span>
+      <span class="chip" title="Coins"><span class="coin"></span><span id="nCoin">0</span></span>
+    </div>
+  </div>
+  <div id="toast"></div>
+
+  <div id="dialog"><div class="por"><img id="dPor" alt=""></div><div><div class="who" id="dWho"></div><div class="txt" id="dTxt"></div></div><div class="more">▼</div></div>
+
+  <div class="sheet" id="partySheet"><div class="card"><h3><span id="partyTitle">Party</span><button class="x" id="partyX">✕</button></h3><div class="plist" id="plist"></div><div id="boxWrap"></div></div></div>
+  <div class="sheet" id="shopSheet"><div class="card"><h3><span>Lantern Stall <span class="small" id="shopCoins"></span></span><button class="x" id="shopX">✕</button></h3><div class="plist" id="shopList"></div></div></div>
+  <div class="sheet" id="journalSheet"><div class="card"><h3><span>Journal <span class="small" id="jCount"></span></span><button class="x" id="journalX">✕</button></h3><div class="jgrid" id="jgrid"></div><div id="jdetail"></div></div></div>
+</div>
+
+<div id="pad">
+  <div class="dp">
+    <span></span><button data-d="up">▲</button><span></span>
+    <button data-d="left">◀</button><span></span><button data-d="right">▶</button>
+    <span></span><button data-d="down">▼</button><span></span>
+  </div>
+  <button class="ab" id="aBtn">A</button>
+</div>
+<p class="help">Move: arrow keys or WASD · Talk / continue: Space or Enter · Battle: click a button or press 1–8 · Walk in tall grass to meet wild companions</p>
+
+<!-- Phaser 3 (MIT license) -->
+<script src="lib/phaser.min.js"></script>
+<!-- Game code: plain scripts, loaded in order -->
+<script src="src/data.js"></script>
+<script src="src/state.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/map.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/story.js"></script>
+<script src="src/scenes/BootScene.js"></script>
+<script src="src/scenes/TitleScene.js"></script>
+<script src="src/scenes/StarterScene.js"></script>
+<script src="src/scenes/WorldScene.js"></script>
+<script src="src/scenes/BattleScene.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
