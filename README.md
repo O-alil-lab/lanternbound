@@ -6,6 +6,9 @@ JavaScript, no build step. Six trainers, eighteen companions drawn as paper-styl
 
 **Play:** https://o-alil-lab.github.io/lanternbound/ (GitHub Pages)
 
+**Also here:** *Wild Survey*, a separate turn-based game with the same 24 characters —
+https://o-alil-lab.github.io/lanternbound/wild-survey/ (source in `wild-survey/source/`).
+
 - Real-time fights: your companion follows you and fights; wild companions roam the tall grass and
   attack — a red shape on the ground shows where they will strike, roll away!
 - Three weapons: **Crystal Staff** (3-hit combo), **Sling** (Stone type), **Crystal Wand** (hold to
@@ -24,6 +27,9 @@ JavaScript, no build step. Six trainers, eighteen companions drawn as paper-styl
 - **Fits every screen**: phones (upright or sideways), tablets and computers get their own HUD size,
   touch controls, camera distance and render resolution; notches and rounded corners are respected;
   full-screen button on phones.
+- **Guided first encounter**: a calm Loomtail in the village grass teaches strike, combo, daze, lantern and
+  ring one step at a time (no hearts lost); short coach hints after that, and a full controls sheet on **?**.
+- Trainer and companion pickers with a confirmation panel (keyboard and screen-reader friendly).
 - Adaptive synthesized music per stage (calm, combat and alpha layers), ambience (birds, river, cave
   drips, lava, crickets, owls), footsteps by surface, reverb.
 
@@ -60,6 +66,7 @@ src/                  shared plain scripts
   data.js           ★ companions, moves, types, lanterns, trainers, wild zones, combat tuning
   state.js            stats, XP, save / load, damage formula
   map.js            ★ the valley layout (30×22 tile grid, legend at the top)
+  3d/coach.js         hints, help sheet and the guided first encounter
   i18n.js           ★ all texts in English, French and Arabic
   screen.js           device type, HUD scale, safe areas, camera distance, full screen
   stages.js         ★ the other stages: maps, looks, wild zones, alphas, unlock rules

@@ -69,6 +69,28 @@ const CSS = `
 #lb-screen p{color:#fff;font-weight:800;margin:6px 0 16px;text-shadow:0 2px 0 #2b2418}
 #lb-screen .row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:1000px}
 #lb-screen .tcard{background:rgba(245,239,226,.96);border:3px solid #3b2f20;border-radius:16px;padding:8px;cursor:pointer;transition:transform .15s,box-shadow .15s;display:flex;flex-direction:column;align-items:center;box-shadow:0 5px 0 rgba(0,0,0,.3)}
+#lb-screen .tcard{font:inherit;color:inherit;position:relative;text-align:center}
+#lb-screen .tcard:focus-visible{outline:none;transform:translateY(-6px);box-shadow:0 0 0 4px #ffc46e,0 8px 0 rgba(0,0,0,.3)}
+#lb-screen .tcard[aria-checked="true"]{box-shadow:0 0 0 4px #2f7f86,0 5px 0 rgba(0,0,0,.3)}
+#lb-screen .tcard .picked{position:absolute;top:-11px;right:-9px;background:#2f7f86;color:#fff;font-size:11px;font-weight:900;letter-spacing:.4px;text-transform:uppercase;border-radius:99px;padding:3px 9px;opacity:0;transform:scale(.8);transition:opacity .15s,transform .15s;border:2px solid #f5efe2}
+#lb-screen .tcard[aria-checked="true"] .picked{opacity:1;transform:scale(1)}
+#lb-screen .live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+#lb-screen .confirm{display:flex;gap:14px;align-items:center;margin-top:16px;padding:12px 14px;background:rgba(245,239,226,.98);border:3px solid #3b2f20;border-radius:16px;box-shadow:0 6px 0 rgba(0,0,0,.32);max-width:min(620px,94vw);animation:cfIn .18s ease-out}
+#lb-screen .confirm[hidden]{display:none}
+@keyframes cfIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+#lb-screen .confirm img{width:96px;height:120px;object-fit:contain;flex:none;background:rgba(235,225,204,.7);border-radius:10px}
+#lb-screen .confirm .cf-body{flex:1;min-width:0;text-align:left}
+#lb-screen .confirm h3{font-family:Fraunces,serif;margin:0 0 2px;font-size:22px;color:#2b2418}
+#lb-screen .confirm p{margin:0 0 4px;color:#4a3f30;font-weight:700;font-size:13.5px;text-shadow:none}
+#lb-screen .confirm .roles{color:#6b5d48;font-size:12.5px;font-weight:800}
+#lb-screen .confirm .roles b{color:#b8692e}
+#lb-screen .cf-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+#lb-screen .btn.alt{background:#f5efe2;color:#2b2418;border:3px solid #3b2f20;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+#lb-screen .btn:focus-visible{outline:none;box-shadow:0 0 0 4px #ffc46e,0 4px 0 #17302d}
+html body.rtl #lb-screen .confirm .cf-body{text-align:right}
+html body.dev-phone #lb-screen .confirm{flex-direction:column;text-align:center;align-items:center}
+html body.dev-phone #lb-screen .confirm .cf-body{text-align:center}
+html body.dev-phone #lb-screen .confirm img{width:74px;height:90px}
 #lb-screen .tcard:hover{transform:translateY(-6px);box-shadow:0 0 0 4px #ffc46e,0 8px 0 rgba(0,0,0,.3)}
 #lb-screen .tcard img{height:clamp(110px,20vh,190px);max-width:150px;object-fit:contain}
 #lb-screen .tcard b{font-family:Fraunces,serif;font-size:18px}
@@ -117,12 +139,15 @@ export function initHud(game) {
       <div class="sk" data-s="dodge">Space<small data-i18n="Roll">Roll</small><div class="cd"></div></div>
       <div class="sk" data-s="lan">E<small data-i18n="Lantern">Lantern</small><div class="cd"></div></div>
     </div>
-    <div class="help" data-i18n-html="${HELP}"></div>`;
+    `;
   document.body.appendChild(hud); LB.applyI18n(hud);
   hud.querySelectorAll('.wslot').forEach(el => el.addEventListener('pointerdown', e => { e.preventDefault(); game.selectWeapon(el.dataset.w); }));
   const screen = document.createElement('div'); screen.id = 'lb-screen'; document.body.appendChild(screen);
-  setTimeout(() => { const h = hud.querySelector('.help'); if (h) h.style.opacity = 0; }, 30000);
-  window.addEventListener('keydown', e => { if (e.key === '?') { const h = hud.querySelector('.help'); h.style.opacity = h.style.opacity === '0' ? 1 : 0; } });
+  window.addEventListener('keydown', e => {
+    if (e.key !== '?') return;
+    if (LB.mode === 'title' || LB.mode === 'dialog' || LB.mode === 'busy') return;
+    e.preventDefault(); if (LB.help) LB.help();
+  });
   return { hud, screen, labels };
 }
 
@@ -170,19 +195,130 @@ export function loading(p) {
   s.classList.add('on'); s.querySelector('.bar i').style.width = p * 100 + '%';
 }
 const langPicker = () => `<div class="langs">${Object.entries(LB.LANGS).map(([k, n]) => `<button class="lang ${k === LB.lang ? 'on' : ''}" data-l="${k}">${n}</button>`).join('')}</div>`;
+// ---------- accessible picker: roving focus, arrow keys, explicit confirmation ----------
+function pickerShell(s, { title, subtitle, items, langRow, saveRow }) {
+  s.innerHTML = `${title}${langRow || ''}<p id="lb-pick-hint">${subtitle}</p>
+    <div class="row" role="radiogroup" aria-labelledby="lb-pick-hint" id="lb-pick-row">
+      ${items.map((it, i) => `<button type="button" class="tcard${it.big ? ' big' : ''}" role="radio" aria-checked="${i === 0}" tabindex="${i === 0 ? 0 : -1}" data-v="${it.id}" aria-label="${it.aria}">
+        <img src="${it.img}" alt=""><b>${it.name}</b>${it.pill ? `<span class="pill" style="background:${it.color}">${it.pill}</span>` : ''}${it.desc ? `<div class="d">${it.desc}</div>` : ''}
+        <span class="picked" aria-hidden="true">${LB.t('Selected')}</span>
+      </button>`).join('')}
+    </div>
+    <div class="live" id="lb-live" role="status" aria-live="polite"></div>
+    <div class="confirm" id="lb-confirm" role="dialog" aria-modal="true" aria-labelledby="cf-name" hidden>
+      <img id="cf-img" alt="">
+      <div class="cf-body">
+        <h3 id="cf-name"></h3>
+        <p id="cf-desc"></p>
+        <p id="cf-roles" class="roles"></p>
+        <div class="cf-actions">
+          <button type="button" class="btn go" id="cf-go"></button>
+          <button type="button" class="btn alt" id="cf-back">${LB.t('Choose again')}</button>
+        </div>
+      </div>
+    </div>${saveRow || ''}`;
+  s.classList.add('on');
+  return s;
+}
+
+function wirePicker(s, items, onConfirm) {
+  const cards = [...s.querySelectorAll('.tcard')];
+  const live = s.querySelector('#lb-live');
+  const panel = s.querySelector('#lb-confirm');
+  let sel = 0;
+  const announce = it => {
+    if (!live) return;
+    live.textContent = LB.t('{n} selected.', { n: it.name }) + ' ' + (it.ariaBody || '') + ' ' + LB.t('Press Enter to confirm.');
+  };
+  const setSel = (i, focus) => {
+    sel = (i + cards.length) % cards.length;
+    cards.forEach((c, k) => { c.setAttribute('aria-checked', String(k === sel)); c.tabIndex = k === sel ? 0 : -1; });
+    if (focus) cards[sel].focus();
+    announce(items[sel]);
+  };
+  const open = i => {
+    setSel(i, false);
+    const it = items[sel];
+    panel.hidden = false;
+    s.querySelector('#cf-img').src = it.img;
+    s.querySelector('#cf-name').textContent = it.name;
+    s.querySelector('#cf-desc').textContent = it.desc || '';
+    s.querySelector('#cf-roles').innerHTML = it.roles || '';
+    s.querySelector('#cf-go').textContent = it.confirm;
+    s.querySelector('#cf-go').focus();
+    try { panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
+    LB.SFX.sel();
+  };
+  const close = () => { panel.hidden = true; cards[sel].focus(); };
+
+  cards.forEach((c, i) => {
+    c.addEventListener('click', () => open(i));
+    c.addEventListener('focus', () => setSel(i, false));
+    c.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); setSel(sel + 1, true); }
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); setSel(sel - 1, true); }
+      else if (e.key === 'Home') { e.preventDefault(); setSel(0, true); }
+      else if (e.key === 'End') { e.preventDefault(); setSel(cards.length - 1, true); }
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(sel); }
+      else if (e.key === 'Escape') { close(); }
+    });
+  });
+  panel.querySelector('#cf-back').addEventListener('click', close);
+  panel.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); close(); } });
+  s.querySelector('#cf-go').addEventListener('click', () => { const it = items[sel]; panel.hidden = true; onConfirm(it.id); });
+  setSel(0, false);
+  return { open, close, setSel };
+}
+
+const rolesFor = player => {
+  const r = {}; for (const k in LB.ROLE_PREF) r[k] = LB.ROLE_PREF[k] === player ? 'Ivo' : LB.ROLE_PREF[k];
+  return r;
+};
+const rivalOf = sp => ({ Bellmoss: 'Hearthusk', Puddlewick: 'Bellmoss', Hearthusk: 'Puddlewick' })[sp];
+
 export function titleScreen(onPick, onContinue) {
   const s = document.getElementById('lb-screen'), save = LB.load();
-  s.innerHTML = `<h1>Lantern<span>bound</span></h1>${langPicker()}<p>${LB.t('Choose your trainer')}</p><div class="row">${Object.keys(LB.TRAINERS).map(n => `<div class="tcard" data-n="${n}"><img src="${LB.trainerImg(n)}" alt=""><b>${n}</b></div>`).join('')}</div>${save && save.party && save.party.length ? `<button class="btn">${LB.t('Continue as {n}', { n: save.player })}</button>` : ''}`;
-  s.classList.add('on');
-  s.querySelectorAll(".tcard").forEach(c => c.onclick = () => { LB.SFX.sel(); onPick(c.dataset.n); });
-  const b = s.querySelector('.btn'); if (b) b.onclick = () => { LB.SFX.sel(); onContinue(save); };
+  const items = Object.keys(LB.TRAINERS).map(n => {
+    const r = rolesFor(n);
+    return {
+      id: n, name: n, img: LB.trainerImg(n),
+      desc: LB.t(LB.TRAINERS[n]),
+      aria: `${n} — ${LB.t(LB.TRAINERS[n])}`,
+      ariaBody: LB.t(LB.TRAINERS[n]),
+      roles: `<b>${LB.t('Mentor')}</b> ${r.mentor} · <b>${LB.t('Rival')}</b> ${r.rival} · <b>${LB.t('Warden')}</b> ${r.warden}`,
+      confirm: LB.t('Begin as {n}', { n })
+    };
+  });
+  pickerShell(s, {
+    title: `<h1>Lantern<span>bound</span></h1>`,
+    subtitle: LB.t('Choose your trainer'),
+    items,
+    langRow: langPicker(),
+    saveRow: save && save.party && save.party.length ? `<button type="button" class="btn" id="lb-continue">${LB.t('Continue as {n}', { n: save.player })}</button>` : ''
+  });
+  wirePicker(s, items, n => { LB.SFX.sel(); onPick(n); });
+  const b = s.querySelector('#lb-continue');
+  if (b) b.addEventListener('click', () => { LB.SFX.sel(); onContinue(save); });
   s.querySelectorAll('.lang').forEach(x => x.onclick = () => { LB.SFX.sel(); LB.setLang(x.dataset.l); titleScreen(onPick, onContinue); });
 }
+
 export function starterScreen(onPick) {
   const s = document.getElementById('lb-screen');
-  s.innerHTML = `<h2>${LB.t('Choose your first companion')}</h2><p>${LB.t('Your rival will take the one that beats yours.')}</p><div class="row">${LB.STARTERS.map(sp => { const M = LB.MON[sp]; return `<div class="tcard big" data-s="${sp}"><img src="${LB.compImg(sp)}" alt=""><b>${sp}</b><span class="pill" style="background:${LB.TYPE_COLOR[M.t]}">${LB.t(M.t)}</span><div class="d">${LB.t(M.d)}</div></div>`; }).join('')}</div>`;
-  s.querySelectorAll(".tcard").forEach(c => c.onclick = () => { LB.SFX.caught(); onPick(c.dataset.s); });
+  const items = LB.STARTERS.map(sp => {
+    const M = LB.MON[sp], beats = (LB.STRONG[M.t] || []).map(x => LB.t(x)).join(' · ');
+    return {
+      id: sp, name: sp, big: true, img: LB.compImg(sp), pill: LB.t(M.t), color: LB.TYPE_COLOR[M.t],
+      desc: LB.t(M.d),
+      aria: `${sp}, ${LB.t(M.t)} ${LB.t('type')} — ${LB.t(M.d)}`,
+      ariaBody: LB.t(M.d),
+      roles: `<b>${LB.t('Strong against')}</b> ${beats} · <b>${LB.t('Your rival takes')}</b> ${rivalOf(sp)}`,
+      confirm: LB.t('Choose {n}', { n: sp })
+    };
+  });
+  pickerShell(s, { title: `<h2>${LB.t('Choose your first companion')}</h2>`, subtitle: LB.t('Your rival will take the one that beats yours.'), items });
+  wirePicker(s, items, sp => { LB.SFX.caught(); onPick(sp); });
 }
+
 export function hideScreen() { document.getElementById('lb-screen').classList.remove('on'); }
 
 // ---------- shop with weapons (replaces the lantern-only shop) ----------

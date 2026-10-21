@@ -110,26 +110,81 @@ export class Actor {
   }
   flash() { this.mat.userData.u.uGlow.value = 2.4; this.flashT = .09; }
   tint(c) { this.mat.color.set(c || '#ffffff'); }
-  // visuals each frame (yaw = camera yaw so the card faces the camera)
+  // ---------- animation ----------
+  // A paper-cut character still reads as "alive" if it has weight: a gait that
+  // matches its speed, a lean into turns, a lunge when it swings and a recoil
+  // when it is hit. All of it is driven from here so every actor behaves alike.
+  playAttack(dur = .22, push = .3) { this.atkT = this.atkDur = dur; this.atkPush = push; }
+  playHurt(dur = .24) { this.hurtT = this.hurtDur = dur; }
   animate(dt, moving, yaw = 0) {
     if (this.flashT > 0) { this.flashT -= dt; if (this.flashT <= 0) this.mat.userData.u.uGlow.value = .3; }
     this.mat.userData.u.uRim.value = this.kind === 'boss' ? .9 : this.kind === 'player' ? .35 : .2;
+    this.clockT = (this.clockT || 0) + dt;
     const sx = this.flip ? -1 : 1;
     this.pivot.rotation.y = yaw;
     if (this.rolling) return;
+
     const W = this.w * PAD, H = this.h * PAD;
-    if (moving && this.state !== 'dazed') {
-      this.bob += dt * 14;
-      const b = Math.abs(Math.sin(this.bob));
-      this.pivot.position.y = b * .16 + this.lift;
-      this.body.scale.set(W * sx * (1 + b * .04), H * (1 - b * .05), 1);
-      this.pivot.rotation.z = THREE.MathUtils.lerp(this.pivot.rotation.z, -this.sv * .025, .2);
-    } else {
-      this.bob += dt * 2.2;
-      this.pivot.position.y = this.lift;
-      this.body.scale.set(W * sx, H * (1 + Math.sin(this.bob) * .012), 1);
-      this.pivot.rotation.z = THREE.MathUtils.lerp(this.pivot.rotation.z, 0, .15);
+    const dazed = this.state === 'dazed';
+    const walk = moving && !dazed;
+    const speed = Math.min(1.5, (this.vel ? this.vel.length() : 0) / 6);
+
+    this.atkT = Math.max(0, (this.atkT || 0) - dt);
+    this.hurtT = Math.max(0, (this.hurtT || 0) - dt);
+
+    // woozy sway while dazed — the game also pokes this, so keep it gentle
+    if (dazed) {
+      this.pivot.position.set(0, this.lift + Math.sin(this.clockT * 2.4) * .02, 0);
+      this.pivot.rotation.z = Math.sin(this.clockT * 5.2) * .16;
+      this.pivot.rotation.x = 0;
+      this.body.scale.set(W * sx, H, 1);
+      this.body.position.y = -this.h * (PAD - 1) / 2;
+      return;
     }
+
+    let y = this.lift || 0, rotZ = 0, rotX = 0, sclX = 1, sclY = 1, push = 0;
+
+    if (walk) {
+      // the gait advances with speed, and the two halves of the step alternate
+      this.gait = (this.gait || 0) + dt * (7.5 + speed * 7);
+      const s = Math.sin(this.gait), b = Math.abs(s);
+      y += b * (.09 + .07 * speed);
+      sclY *= 1 - b * .05;                    // give at the top of the step
+      sclX *= 1 + b * .035;
+      rotZ += -s * .05 * sx;                  // hips sway
+      // a little forward lean while running
+      this.lean = (this.lean || 0) + ((.06 + .10 * speed) - (this.lean || 0)) * Math.min(1, dt * 6);
+      rotX -= this.lean * .9;
+    } else {
+      this.gait = 0;
+      const br = Math.sin(this.clockT * 1.9);
+      y += br * .012;
+      sclY *= 1 + br * .012;                  // breathing
+      this.lean = (this.lean || 0) * Math.max(0, 1 - dt * 6);
+      rotX -= this.lean * .6;
+    }
+
+    // swing: snap forward, settle back
+    if (this.atkT > 0) {
+      const k = 1 - this.atkT / this.atkDur;
+      const punch = Math.sin(Math.min(1, k) * Math.PI);
+      push += punch * (this.atkPush || .3);
+      rotX -= punch * .16;
+      rotZ += punch * .06 * sx;
+      sclY *= 1 - punch * .04;
+    }
+    // hit: recoil away from the blow
+    if (this.hurtT > 0) {
+      const k = this.hurtT / this.hurtDur;
+      push -= k * .18;
+      rotZ += Math.sin(k * 34) * .06 * sx;
+    }
+
+    const lx = this.look ? this.look.x : 0, lz = this.look ? this.look.y : 1;
+    this.pivot.position.set(lx * push, y, lz * push);
+    this.pivot.rotation.z = rotZ;
+    this.pivot.rotation.x = rotX;
+    this.body.scale.set(W * sx * sclX, H * sclY, 1);
     this.body.position.y = -this.h * (PAD - 1) / 2;
   }
   updateLabel(fx) {

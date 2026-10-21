@@ -33,6 +33,7 @@ class Game {
     this.post = new Post(this.renderer, this.scene, this.camera);
     initHud(this); installShop(this);
     this.glowTex = glowTexture();
+    LB.tileSize = S;                      // the teaching layer works in map tiles too
     this.world = buildWorld(this.scene, this.renderer, this.glowTex);
     this.fx = new FX(this.scene, this.camera, this.glowTex); this.stageBuilt = true;
     this.clock = new THREE.Clock(); this.t = 0;
@@ -67,13 +68,9 @@ class Game {
     const G = LB.G, R = G.roles;
     await LB.dialog([
       LB.t("Welcome to Hollow Village, {p}. I'm {m}.", { p: G.player, m: R.mentor }),
-      LB.t('{s} has chosen you. It will follow you and fight by your side.', { s: G.starter }),
-      LB.t(LB.touch ? 'Your Crystal Staff swings with the A button. Tap three times for a combo. Your companion fights on its own, and SP is its special move.' : 'Your Crystal Staff swings with left-click or J. Click three times for a combo. Your companion attacks with right-click or K, and L is its special move.'),
-      LB.t(LB.touch ? 'Wild companions roam the tall grass. A red shape on the ground shows where they are about to strike, so roll away with ⤳!' : 'Wild companions roam the tall grass. A red shape on the ground shows where they are about to strike, so roll away with Space!'),
-      LB.t(LB.touch ? 'Knock one out and it gets dazed. Tap 🏮 to aim a lantern, tap again to throw, then tap each time the gold ring meets the white ring. Three hits and it joins you!' : 'Knock one out and it gets dazed. Press E to aim a lantern, throw it, then press Space each time the gold ring meets the white ring. Three hits and it joins you!'),
-      LB.t('{r} guards the meadow gate to the north. The Lantern Stall sells lanterns, a Sling and a Crystal Wand.', { r: R.ranger })
+      LB.t('{s} has chosen you. It will walk beside you from now on.', { s: G.starter }),
+      LB.t("There is something in the tall grass east of here. Go and meet it.")
     ], R.mentor);
-    LB.save(true);
   }
   startWorld(isNew) {
     hideScreen(); showHud(true);
@@ -277,6 +274,7 @@ class Game {
       const big = this.combo === 3; this.wCd = this.wCdMax = big ? .55 : .28;
       const ang = Math.atan2(-dir.y, dir.x), arc = big ? Math.PI * 1.25 : Math.PI * .85, R = big ? 2.6 : 2.1;
       const side = this.combo === 2 ? -1 : 1;
+      this.player.playAttack(big ? .26 : .2, big ? .42 : .3);
       this.swing = { t: 0, dur: .16, from: Math.atan2(dir.x, dir.y) + side * arc / 2, to: Math.atan2(dir.x, dir.y) - side * arc / 2 };
       this.fx.swing(this.player.pos, ang, arc, R, big ? '#ffd23f' : '#d8fbff');
       LB.SFX.swing();
@@ -288,7 +286,7 @@ class Game {
       });
       if (big) this.fx.shake(.25, .15);
     } else if (k === 'sling') {
-      this.wCd = this.wCdMax = .45;
+      this.wCd = this.wCdMax = .45; this.player.playAttack(.18, .18);
       const P = this.player, from = new V3(P.x + dir.x * .5, 1.1, P.z + dir.y * .5);
       this.shoot({ from, dir, speed: 17, vy: 2.2, g: -7, owner: this.player, type: 'Stone', color: '#b9b2a4', size: .13, weapon: 'sling', range: 1.1, mesh: 'stone' });
       LB.SFX.sling();
@@ -298,6 +296,7 @@ class Game {
     if (!this.charging) return;
     this.charging = false; const c = Math.min(1, this.charge || 0);
     const { dir } = this.aimDir(14); this.face.copy(dir);
+    this.player.playAttack(.2, .16);
     this.wCd = this.wCdMax = .45; LB.SFX.zap();
     const P = this.player, from = new V3(P.x + dir.x * .6, 1.2, P.z + dir.y * .6);
     this.shoot({ from, dir, speed: 15 + c * 6, vy: 0, g: 0, owner: this.player, type: 'Glimmer', color: c > .6 ? '#ffd23f' : '#e4b8ff', size: .16 + c * .3, weapon: 'wand', mult: .6 + c * 2.2, pierce: c > .6, range: 1.3 });
@@ -346,7 +345,7 @@ class Game {
   }
   damage(u, attacker, r, kb) {
     if (u.dead || u.state === 'dazed' || u.state === 'captured') return;
-    u.m.hpA = Math.max(0, u.m.hpA - r.dmg); u.flash();
+    u.m.hpA = Math.max(0, u.m.hpA - r.dmg); u.flash(); u.playHurt && u.playHurt();
     const dx = u.x - attacker.x, dz = u.z - attacker.z, d = Math.hypot(dx, dz) || 1;
     u.kb.set(dx / d * kb, dz / d * kb);
     const p = new V3(u.x, u.h * .55, u.z);
@@ -360,6 +359,14 @@ class Game {
   }
   hurtPlayer(attacker) {
     const P = this.player; if (P.iframes > 0) return;
+    if (LB.firstFight && LB.firstFight.active) {          // the first encounter teaches, it cannot hurt you
+      P.iframes = 1.1; P.flash(); P.playHurt && P.playHurt();
+      const dx = P.x - attacker.x, dz = P.z - attacker.z, d = Math.hypot(dx, dz) || 1;
+      P.kb.set(dx / d * 6, dz / d * 6);
+      this.fx.text(new V3(P.x, 2.4, P.z), LB.t('Safe — this one is only training you'), '#9feaf2', 15);
+      this.fx.burst('Glimmer', P.pos.clone(), 10, .7);
+      return;
+    }
     LB.G.hearts--; P.iframes = 1.1; P.flash(); LB.SFX.faint(); this.fx.shake(.45, .25);
     const dx = P.x - attacker.x, dz = P.z - attacker.z, d = Math.hypot(dx, dz) || 1; P.kb.set(dx / d * 9, dz / d * 9);
     this.fx.text(new V3(P.x, 2.4, P.z), '-♥', '#ff6a5a', 24);
@@ -466,11 +473,19 @@ class Game {
     a.vel.set(d > .2 ? (tx - a.x) / d * sp : 0, d > .2 ? (tz - a.z) / d * sp : 0);
     this.move(a, (a.vel.x + a.kb.x) * dt, (a.vel.y + a.kb.y) * dt); a.kb.multiplyScalar(Math.pow(.02, dt));
     // fights on its own when enemies are close
-    if (this.petCd <= 0) { let best = null, bd = 7; this.enemies().forEach(u => { const dd = dist(a.pos, u.pos); if (dd < bd) { bd = dd; best = u; } }); if (best) this.petAttack(best); }
+    if (this.petCd <= 0 && !(LB.firstFight && LB.firstFight.active)) { let best = null, bd = 7; this.enemies().forEach(u => { const dd = dist(a.pos, u.pos); if (dd < bd) { bd = dd; best = u; } }); if (best) this.petAttack(best); }
   }
 
   // ---------------- wild companions ----------------
+  spawnSparring(sp, lvl, x, z) {
+    const m = LB.mk(sp, lvl); m.hpA = LB.unitMaxHp(m);
+    const u = new Actor(this, { kind: 'wild', m, x, z });
+    u.spar = true; u.state = 'idle'; u.zoneChar = ','; u.appear = 0;
+    this.wild.push(u);
+    return u;
+  }
   spawnWild(dt) {
+    if (LB.firstFight && LB.firstFight.active) return;   // the lesson runs alone
     this.spawnT -= dt; if (this.spawnT > 0 || this.fight) return; this.spawnT = 1.2;
     const P = this.player;
     this.wild.slice().forEach(u => { if (u.kind === 'wild' && !u.alpha && dist(P.pos, u.pos) > 34) { u.destroy(); this.wild.splice(this.wild.indexOf(u), 1); } });
@@ -496,6 +511,22 @@ class Game {
     }
     if (u.state === 'gone') return;
     u.cd -= dt;
+    if (u.spar) {
+      const st = (LB.firstFight && LB.firstFight.stage) || '';
+      if (st === 'approach' || st === 'strike') { u.state = 'idle'; u.vel.set(0, 0); u.cd = 1.2; return; }
+      // one slow, clearly telegraphed lunge so the red ring is learned safely
+      if (u.state !== 'windup' && u.cd <= 0 && dist(u.pos, this.player.pos) < 4.2) {
+        u.cd = 3.4;
+        this.fx.telegraph(u.pos, this.player.pos.clone(), 'lunge', .9);
+        this.windup(u, .9, () => { if (!u.dead) this.hitBy(this.player, u, LB.basicMove(u.m.sp), .4); });
+      }
+      if (u.state !== 'windup') {
+        const bx = this.player.x - u.x, bz = this.player.z - u.z, bd = Math.hypot(bx, bz) || 1;
+        u.vel.set(bx / bd * 1.05, bz / bd * 1.05);
+        this.move(u, u.vel.x * dt, u.vel.y * dt);
+      }
+      return;
+    }
     if (u.state === 'lunge') { this.updateLunge(u, dt, [this.player, this.ally]); return; }
     if (u.state === 'windup') { u.windT -= dt; u.pivot.position.x = Math.sin(this.t * 60) * .05; if (u.windT <= 0) { u.pivot.position.x = 0; u.tint(); u.state = 'chase'; u.doAttack(); } this.move(u, u.kb.x * dt, u.kb.y * dt); u.kb.multiplyScalar(Math.pow(.02, dt)); return; }
     const P = this.player, targets = [P, this.ally].filter(t => t && !t.dead);
@@ -576,21 +607,21 @@ class Game {
     if (k < 1) return;
     this.flying = null; f.lan.rotation.set(0, 0, 0);
     const hit = this.wild.find(u => !u.dead && Math.hypot(f.e.x - u.x, f.e.z - u.z) < u.r + .9);
-    if (hit && hit.state === 'dazed') { this.startCapture(hit, f.lan, f.kind); return; }
+    if (hit && hit.state === 'dazed') { this.startCapture(hit, f.lan, f.kind, hit.spar && LB.firstFight ? LB.firstFight.captureOpts() : {}); return; }
     this.fx.text(new V3(f.e.x, 1.4, f.e.z), LB.t(hit ? (hit.kind === 'boss' ? "Can't befriend a trainer's companion" : 'Too strong! Weaken it first') : 'Missed!'), hit ? '#ffb3a8' : '#cfc8ba', 16);
     LB.SFX.escape(); this.fx.burst('Plain', f.lan.position, 8); this.scene.remove(f.lan);
   }
-  startCapture(u, lan, kind) {
+  startCapture(u, lan, kind, opts = {}) {
     LB.mode = 'capture'; u.state = 'captured';
     this.fx.burst('Glimmer', new V3(u.x, 1, u.z), 20); LB.SFX.caught();
     const L = LB.LANTERNS[kind], cr = LB.MON[u.m.sp].cr;
-    const zone = kind === 'warden' ? 2 : Math.min(.75, Math.max(.25, (5 + 7 * cr * L.bonus(u.t)) / 22 * 1.1));
+    const zone = opts.zone != null ? opts.zone : (kind === 'warden' ? 2 : Math.min(.75, Math.max(.25, (5 + 7 * cr * L.bonus(u.t)) / 22 * 1.1)));
     const R0 = 1.1, mk = (geo, color, op) => { const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.set(u.x, .1, u.z); this.scene.add(m); return m; };
     const zoneM = mk(new THREE.RingGeometry(R0 - zone / 2, R0 + zone / 2, 48), '#5aa340', .45);
     const targetM = mk(new THREE.RingGeometry(R0 - .03, R0 + .03, 48), '#ffffff', 1);
     const movingM = mk(new THREE.RingGeometry(.94, 1, 48), '#ffd23f', 1); movingM.position.y = .12;
     const pips = [0, 1, 2].map(i => { const p = new THREE.Mesh(new THREE.SphereGeometry(.09, 10, 8), new THREE.MeshBasicMaterial({ color: '#3b2f20' })); p.position.set(u.x - .3 + i * .3, 2.4, u.z); this.scene.add(p); return p; });
-    this.capture = { u, lan, kind, zone, R0, zoneM, targetM, movingM, pips, hits: 0, r: 3.2, t: 0, dur: Math.max(.56, 1.05 - u.m.lvl * .025), waiting: false, shrink: 0, wait: .5 };
+    this.capture = { u, lan, kind, zone, R0, zoneM, targetM, movingM, pips, hits: 0, r: 3.2, t: 0, dur: opts.dur != null ? opts.dur : Math.max(.56, 1.05 - u.m.lvl * .025), waiting: false, shrink: 0, wait: .5 };
     lan.position.set(u.x, .4, u.z);
   }
   updateCapture(dt) {
@@ -718,6 +749,8 @@ class Game {
     const G = LB.G, P = this.player, K = this.keys, Pr = this.pressed;
     const q = LB.btnQueue || []; LB.btnQueue = [];
     if (this.capture) {
+      if (LB.firstFight) LB.firstFight.update(this, rdt);
+      if (LB.coach) LB.coach.update(this, rdt);
       if (Pr.has('Space') || Pr.has('KeyJ') || Pr.has('Enter') || Pr.has('KeyE') || Pr.has('MouseL') || q.length) this.capturePress();
       this.updateCapture(rdt); return;
     }
@@ -769,6 +802,8 @@ class Game {
     this.updateShots(dt);
     this.updateFlying(rdt);
     this.spawnWild(rdt);
+    if (LB.firstFight) LB.firstFight.update(this, rdt);
+    if (LB.coach) LB.coach.update(this, rdt);
     // music intensity: boss > combat (enemy close or hostile) > explore
     const hostile = this.wild.some(u => !u.dead && u.state !== 'dazed' && u.state !== 'captured' && (u.kind === 'boss' || ['chase', 'windup', 'lunge'].includes(u.state)) && dist(P.pos, u.pos) < 14);
     LB.audio.setIntensity(this.wild.some(u => !u.dead && u.alpha && u.state !== 'dazed' && dist(P.pos, u.pos) < 22) ? 2 : (this.fight || hostile) ? 1 : 0);

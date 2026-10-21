@@ -139,10 +139,12 @@ LB.DAZE_TIME = 9000;      // ms a weakened wild companion stays catchable
 
 // Which way each drawn view faces on the sheet: [three-quarter, side] — 'L' or 'R'.
 // Used to mirror the art so characters turn the right way in 8 directions.
+// Checked image by image (head direction on each drawing). Trainers differ: Nera's views face left,
+// the five others face right. Cairnib and Nimbrook turn their head the other way on the side view.
 LB.FACING = {
-  Bellmoss: ['R', 'R'], Velouray: ['R', 'R'], Loomtail: ['L', 'L'], Tasselk: ['L', 'L'], Puddlewick: ['L', 'L'],
-  Clatterbud: ['L', 'L'], Rillspool: ['R', 'R'], Coralune: ['L', 'R'], Hearthusk: ['L', 'L'], Glimmerell: ['L', 'L'],
+  Bellmoss: ['R', 'R'], Velouray: ['R', 'R'], Loomtail: ['L', 'L'], Tasselk: ['R', 'R'], Puddlewick: ['L', 'L'],
+  Clatterbud: ['L', 'L'], Rillspool: ['R', 'R'], Coralune: ['R', 'R'], Hearthusk: ['L', 'L'], Glimmerell: ['L', 'L'],
   Quillora: ['L', 'L'], Saffrill: ['R', 'R'], Cairnib: ['R', 'L'], Tumblefen: ['L', 'L'], Drapplet: ['L', 'L'],
   Nimbrook: ['R', 'L'], Bristlefin: ['L', 'L'], Opaloom: ['R', 'R'],
-  Nera: ['R', 'R'], Ivo: ['R', 'R'], Sana: ['R', 'R'], Tavi: ['R', 'R'], Elin: ['R', 'R'], Oren: ['R', 'R']
+  Nera: ['L', 'L'], Ivo: ['R', 'R'], Sana: ['R', 'R'], Tavi: ['R', 'R'], Elin: ['R', 'R'], Oren: ['R', 'R']
 };

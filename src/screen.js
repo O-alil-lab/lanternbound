@@ -71,8 +71,15 @@ html body.short:not(.dev-desktop) #pad .ab{width:76px;height:76px}
 html body.short:not(.dev-desktop) #pad .ab.s{width:54px;height:54px;font-size:18px}
 html body.short:not(.dev-desktop) #stick{width:132px;height:132px}
 /* phones held upright: party strip moves up, controls stay thumb-sized */
-html body.dev-phone.portrait #hud3d .info{bottom:auto;top:178px}
+/* portrait phones: the button row (7 chips now) sits below the hearts, so push the cards down */
+html body.dev-phone.portrait #hud .grp:last-child{margin-top:34px}
+html body.dev-phone.portrait #hud3d .lead{top:76px}
+html body.dev-phone.portrait #hud3d .party{top:156px}
+html body.dev-phone.portrait #hud3d .info{bottom:auto;top:210px}
 html body.dev-phone.portrait #pad .acts{grid-template-columns:repeat(3,auto)}
+html body.dev-phone.portrait #stick{width:118px;height:118px}
+html body.dev-phone.portrait #pad .ab{width:76px;height:76px}
+html body.dev-phone.portrait #pad .ab.s{width:54px;height:54px;font-size:18px}
 html body.dev-phone.portrait #lb-screen .tcard img{height:min(130px,16vh)}
 /* tablets get the full desktop HUD, bigger touch targets */
 html body.dev-tablet #pad .ab{width:96px;height:96px}
