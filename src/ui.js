@@ -143,15 +143,17 @@ LB.initUI = function (game) {
   const st = document.createElement('style'); st.textContent = LB.UI_CSS; document.head.appendChild(st);
   const root = document.createElement('div'); root.id = 'lb-ui'; root.innerHTML = LB.UI_HTML; document.body.appendChild(root);
 
-  // keep the overlay exactly on top of the canvas
+  // keep the overlay exactly on top of the canvas (or fill the window when there is no Phaser game)
+  if (!game) { Object.assign(root.style, { left: '0', top: '0', width: '100%', height: '100%', zIndex: 10 }); }
   const sync = () => {
+    if (!game) return;
     const c = game.canvas; if (!c) return;
     // The overlay is laid out at the game's own size (960×704) and scaled to match the canvas,
     // so the top bar and windows shrink and grow together with the game.
     const r = c.getBoundingClientRect(), k = r.width / 960;
     Object.assign(root.style, { left: r.left + 'px', top: r.top + 'px', width: '960px', height: '704px', transform: `scale(${k})`, transformOrigin: '0 0' });
   };
-  game.scale.on('resize', sync); window.addEventListener('resize', sync); setInterval(sync, 500); setTimeout(sync, 50);
+  if (game) game.scale.on('resize', sync); window.addEventListener('resize', sync); setInterval(sync, 500); setTimeout(sync, 50);
 
   window.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter' || e.key === 'z') { if (LB.advance()) e.preventDefault(); } });
   // touch: virtual joystick + action buttons

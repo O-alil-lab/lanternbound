@@ -5,29 +5,23 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>Lanternbound</title>
 <style>
-  html,body{margin:0;width:100vw;height:100vh;overflow:hidden;background:radial-gradient(circle,#2b3b3a 0%,#141b1b 85%)}
-  #game-container{display:flex;justify-content:center;align-items:center;width:100%;height:100%;overflow:hidden}
+  html,body{margin:0;width:100vw;height:100vh;overflow:hidden;background:#bfdce9;touch-action:none}
+  #game-container{position:fixed;inset:0}
+  #game-container canvas{display:block}
 </style>
+<script type="importmap">{ "imports": { "three": "./lib/three.module.js" } }</script>
 </head>
 <body>
 <div id="game-container"></div>
-<!-- Images load from this folder when you run a local copy -->
 <script>window.LB_ASSET_BASE = 'assets/';</script>
-<!-- Phaser 4 (MIT license) -->
-<script src="lib/phaser.min.js"></script>
-<!-- Game code: the same files as the Phaser Create project. Game.js (entry) goes last. -->
+<!-- Shared game data and menus (plain scripts) -->
 <script src="src/data.js"></script>
 <script src="src/state.js"></script>
 <script src="src/audio.js"></script>
 <script src="src/map.js"></script>
 <script src="src/ui.js"></script>
 <script src="src/story.js"></script>
-<script src="src/Boot.js"></script>
-<script src="src/Preloader.js"></script>
-<script src="src/Title.js"></script>
-<script src="src/Starter.js"></script>
-<script src="src/World.js"></script>
-<script src="src/Hud.js"></script>
-<script src="src/Game.js"></script>
+<!-- 3D game (Three.js, MIT license) -->
+<script type="module" src="src/3d/game.js"></script>
 </body>
 </html>
