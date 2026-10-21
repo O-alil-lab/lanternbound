@@ -4,13 +4,14 @@
 // ============================================================
 import * as THREE from 'three';
 
-export const TEX = {};   // loaded character textures: f_<species>, b_<species>, tr_<trainer>
+export const TEX = {};   // loaded character textures: <view>_<name>  (view = f, q, s, b)
+const VIEWS = { f: 'front', q: 'q', s: 'side', b: 'back' };
 
 export function loadTextures(onProgress) {
   const loader = new THREE.TextureLoader(); loader.setCrossOrigin('anonymous');
   const jobs = [];
-  Object.keys(LB.TRAINERS).forEach(n => jobs.push(['tr_' + n, LB.trainerImg(n)]));
-  Object.keys(LB.MON).forEach(sp => { jobs.push(['f_' + sp, LB.compImg(sp, 'front')]); jobs.push(['b_' + sp, LB.compImg(sp, 'back')]); });
+  Object.keys(LB.TRAINERS).forEach(n => Object.entries(VIEWS).forEach(([k, v]) => jobs.push([k + '_' + n, LB.trainerView(n, v)])));
+  Object.keys(LB.MON).forEach(sp => Object.entries(VIEWS).forEach(([k, v]) => jobs.push([k + '_' + sp, LB.compImg(sp, v)])));
   let done = 0;
   return Promise.all(jobs.map(([k, url]) => new Promise(res => {
     loader.load(url, t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; TEX[k] = t; onProgress(++done / jobs.length); res(); },
@@ -18,76 +19,127 @@ export function loadTextures(onProgress) {
   })));
 }
 
+const PAD = 1.06;   // the card is drawn 6% larger so the outline fits around the art
+
+// Paper-cut look: dark ink outline around the art, soft self-light so colours stay bright.
+function paperMaterial(tex) {
+  const mat = new THREE.MeshStandardMaterial({ map: tex, alphaTest: .5, side: THREE.DoubleSide, roughness: 1 });
+  const u = { uGlow: { value: .3 }, uTexel: { value: new THREE.Vector2(1 / 256, 1 / 256) }, uPad: { value: PAD }, uOutline: { value: new THREE.Color('#2b2418') }, uRim: { value: 0 } };
+  mat.userData.u = u;
+  mat.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, u);
+    sh.fragmentShader = 'uniform float uGlow; uniform vec2 uTexel; uniform float uPad; uniform vec3 uOutline; uniform float uRim;\n' +
+      sh.fragmentShader.replace('#include <map_fragment>', `
+        vec2 uvp = (vMapUv - 0.5) * uPad + 0.5;
+        float inside = step(0.0, uvp.x) * step(uvp.x, 1.0) * step(0.0, uvp.y) * step(uvp.y, 1.0);
+        vec4 texel = texture2D(map, uvp) * inside;
+        float nb = 0.0;
+        for (int i = 0; i < 8; i++) {
+          float a = float(i) * 0.785398;
+          vec2 o = uvp + vec2(cos(a), sin(a)) * uTexel * 2.6;
+          float ins = step(0.0, o.x) * step(o.x, 1.0) * step(0.0, o.y) * step(o.y, 1.0);
+          nb = max(nb, texture2D(map, o).a * ins);
+        }
+        if (texel.a < 0.5 && nb > 0.5) texel = vec4(uOutline, 1.0);
+        diffuseColor *= texel;
+        float edge = (texel.a > 0.5) ? (1.0 - min(1.0, nb)) : 0.0;
+        totalEmissiveRadiance += diffuseColor.rgb * uGlow + vec3(1.0, 0.95, 0.8) * uRim * edge;
+      `);
+  };
+  return mat;
+}
+
 export class Actor {
   constructor(game, o) {
-    // o: { kind: 'player'|'ally'|'wild'|'boss'|'npc', m, trainer, x, z }
+    // o: { kind: 'player'|'ally'|'wild'|'boss'|'npc', m, trainer, x, z, scale }
     this.g = game; this.kind = o.kind; this.m = o.m; this.trainer = o.trainer;
-    this.texKey = o.trainer ? 'tr_' + o.trainer : 'f_' + o.m.sp;
+    this.base = o.trainer || o.m.sp;
+    this.texKey = 'f_' + this.base;
     const tex = TEX[this.texKey];
-    const img = tex && tex.image;
-    this.h = o.trainer ? 1.9 : 1.55 * (LB.SIZE[o.m.sp] || 1);
-    const w = this.h * (img ? img.width / img.height : .6);
-    this.w = w;
+    this.size = (o.scale || 1) * (o.trainer ? 1 : (LB.SIZE[o.m.sp] || 1));
+    this.h = o.trainer ? 1.9 : 1.55 * this.size;
     const geo = new THREE.PlaneGeometry(1, 1); geo.translate(0, .5, 0);
-    this.mat = new THREE.MeshStandardMaterial({ map: tex, alphaTest: .5, side: THREE.DoubleSide, roughness: 1, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: .28 });
-    this.body = new THREE.Mesh(geo, this.mat);
-    this.body.scale.set(w, this.h, 1); this.body.castShadow = true;
+    this.mat = paperMaterial(tex);
+    this.body = new THREE.Mesh(geo, this.mat); this.body.castShadow = true;
     this.body.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: tex, alphaTest: .5 });
-    this.blob = new THREE.Mesh(new THREE.CircleGeometry(.5, 20), new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: .2, depthWrite: false }));
-    this.blob.rotation.x = -Math.PI / 2; this.blob.position.y = .03; this.blob.scale.setScalar(Math.max(.6, w * .55));
-    this.pivot = new THREE.Group(); this.pivot.add(this.body);
+    this.blob = new THREE.Mesh(new THREE.CircleGeometry(.5, 20), new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: .22, depthWrite: false }));
+    this.blob.rotation.x = -Math.PI / 2; this.blob.position.y = .03;
+    this.pivot = new THREE.Group(); this.pivot.rotation.order = 'YXZ'; this.pivot.add(this.body);
     this.obj = new THREE.Group(); this.obj.add(this.pivot, this.blob);
     this.obj.position.set(o.x, 0, o.z); game.scene.add(this.obj);
     this.pos = this.obj.position;
-    this.vel = new THREE.Vector2(); this.kb = new THREE.Vector2();
-    this.r = o.trainer ? .38 : .35 * (LB.SIZE[o.m.sp] || 1) + .1;
+    this.applyTexture(tex);
+    this.vel = new THREE.Vector2(); this.kb = new THREE.Vector2(); this.look = new THREE.Vector2(0, 1);
+    this.r = o.trainer ? .38 : .35 * this.size + .1;
     this.cd = 1 + Math.random(); this.state = 'idle'; this.iframes = 0; this.bob = Math.random() * 6; this.dead = false;
-    this.home = { x: o.x, z: o.z }; this.wanderT = 0; this.lift = 0;
+    this.home = { x: o.x, z: o.z }; this.wanderT = 0; this.lift = 0; this.flip = false;
     if (this.m) { this.t = LB.MON[this.m.sp].t; this.style = LB.STYLE[this.t]; if (this.m.hpA == null) this.m.hpA = LB.unitMaxHp(this.m); }
     if (this.m && (this.kind === 'wild' || this.kind === 'boss')) {
-      this.label = document.createElement('div'); this.label.className = 'ubar' + (this.kind === 'boss' ? ' boss' : '');
-      this.label.innerHTML = `<span class="lv">Lv${this.m.lvl}</span><div class="b"><i></i></div><div class="pr"></div>`;
+      this.label = document.createElement('div'); this.label.className = 'ubar' + (this.kind === 'boss' || o.alpha ? ' boss' : '');
+      this.label.innerHTML = `<span class="lv">${o.alpha ? 'ALPHA ' : ''}Lv${this.m.lvl}</span><div class="b"><i></i></div><div class="pr"></div>`;
       document.getElementById('lb-labels').appendChild(this.label);
       this.fill = this.label.querySelector('i'); this.prompt = this.label.querySelector('.pr');
     }
   }
   get x() { return this.pos.x; } get z() { return this.pos.z; }
-  setTexture(k) {
-    if (this.texKey === k || !TEX[k]) return; this.texKey = k;
-    this.mat.map = TEX[k]; this.mat.emissiveMap = TEX[k]; this.mat.needsUpdate = true;
-    this.body.customDepthMaterial.map = TEX[k]; this.body.customDepthMaterial.needsUpdate = true;
+  applyTexture(tex) {
+    if (!tex) return;
+    const img = tex.image, w = this.h * (img ? img.width / img.height : .6);
+    this.w = w;
+    this.mat.map = tex; this.mat.needsUpdate = true;
+    if (img) this.mat.userData.u.uTexel.value.set(1 / img.width, 1 / img.height);
+    this.body.customDepthMaterial.map = tex; this.body.customDepthMaterial.needsUpdate = true;
+    this.blob.scale.setScalar(Math.max(.6, Math.min(w, this.h) * .5));
   }
-  flash() { this.mat.emissiveIntensity = 2.5; this.flashT = .09; }
+  setTexture(k) { if (this.texKey === k || !TEX[k]) return; this.texKey = k; this.applyTexture(TEX[k]); }
+  // pick the right drawing (front / three-quarter / side / back) for a direction seen from the camera
+  face(sx, sz) {
+    if (Math.hypot(sx, sz) < .05) return;
+    const a = Math.atan2(sx, sz);              // 0 = toward camera, ±π = away
+    const sector = Math.round(a / (Math.PI / 4)); // -4..4
+    const fac = LB.FACING[this.base] || ['R', 'R'];
+    let view = 'f', wantRight = sx >= 0, native = 'R';
+    const abs = Math.abs(sector);
+    if (abs === 0) view = 'f';
+    else if (abs === 1) { view = 'q'; native = fac[0]; }
+    else if (abs === 2) { view = 's'; native = fac[1]; }
+    else view = 'b';
+    if (this.state === 'dazed') view = 'f';
+    this.setTexture(view + '_' + this.base);
+    this.flip = (view === 'q' || view === 's') ? (wantRight !== (native === 'R')) : false;
+  }
+  flash() { this.mat.userData.u.uGlow.value = 2.4; this.flashT = .09; }
   tint(c) { this.mat.color.set(c || '#ffffff'); }
-  // visuals each frame
-  animate(dt, moving) {
-    if (this.flashT > 0) { this.flashT -= dt; if (this.flashT <= 0) this.mat.emissiveIntensity = .28; }
-    const vx = this.vel.x, vz = this.vel.y;
-    if (this.m && this.state !== 'dazed') this.setTexture((vz < -.8 && Math.abs(vz) > Math.abs(vx) ? 'b_' : 'f_') + this.m.sp);
-    if (Math.abs(vx) > .3) this.flip = vx < 0;
+  // visuals each frame (yaw = camera yaw so the card faces the camera)
+  animate(dt, moving, yaw = 0) {
+    if (this.flashT > 0) { this.flashT -= dt; if (this.flashT <= 0) this.mat.userData.u.uGlow.value = .3; }
+    this.mat.userData.u.uRim.value = this.kind === 'boss' ? .9 : this.kind === 'player' ? .35 : .2;
     const sx = this.flip ? -1 : 1;
+    this.pivot.rotation.y = yaw;
     if (this.rolling) return;
+    const W = this.w * PAD, H = this.h * PAD;
     if (moving && this.state !== 'dazed') {
       this.bob += dt * 14;
       const b = Math.abs(Math.sin(this.bob));
       this.pivot.position.y = b * .16 + this.lift;
-      this.body.scale.set(this.w * sx * (1 + b * .04), this.h * (1 - b * .05), 1);
-      this.pivot.rotation.z = THREE.MathUtils.lerp(this.pivot.rotation.z, -vx * .025, .2);
+      this.body.scale.set(W * sx * (1 + b * .04), H * (1 - b * .05), 1);
+      this.pivot.rotation.z = THREE.MathUtils.lerp(this.pivot.rotation.z, -this.sv * .025, .2);
     } else {
       this.bob += dt * 2.2;
       this.pivot.position.y = this.lift;
-      this.body.scale.set(this.w * sx, this.h * (1 + Math.sin(this.bob) * .012), 1);
+      this.body.scale.set(W * sx, H * (1 + Math.sin(this.bob) * .012), 1);
       this.pivot.rotation.z = THREE.MathUtils.lerp(this.pivot.rotation.z, 0, .15);
     }
+    this.body.position.y = -this.h * (PAD - 1) / 2;
   }
   updateLabel(fx) {
     if (!this.label) return;
     const p = fx.project(new THREE.Vector3(this.pos.x, this.h + .45, this.pos.z));
     this.label.style.display = p.vis && !this.hidden ? '' : 'none';
     this.label.style.transform = `translate(${p.x}px,${p.y}px) translate(-50%,-100%)`;
-    const v = Math.max(0, this.m.hpA) / LB.unitMaxHp(this.m);
+    const v = Math.max(0, this.m.hpA) / (this.maxHp || LB.unitMaxHp(this.m));
     this.fill.style.width = (v * 100) + '%';
-    this.fill.style.background = this.kind === 'boss' ? '#d9a634' : v > .5 ? '#5aa340' : v > .2 ? '#d9a634' : '#c8452f';
+    this.fill.style.background = this.kind === 'boss' || this.alpha ? '#d9a634' : v > .5 ? '#5aa340' : v > .2 ? '#d9a634' : '#c8452f';
   }
   destroy() { this.dead = true; this.g.scene.remove(this.obj); this.mat.dispose(); if (this.label) this.label.remove(); }
 }

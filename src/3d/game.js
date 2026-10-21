@@ -3,8 +3,9 @@
 // wild AI, lantern capture, trainer fights, camera and the game loop.
 // ============================================================
 import * as THREE from 'three';
-import { buildWorld, S, charAt, tileCenter } from './world.js';
+import { buildWorld, glowTexture, S, charAt, tileCenter } from './world.js';
 import { FX } from './fx.js';
+import { Post } from './post.js';
 import { Actor, loadTextures, makeWeapon, makeLantern } from './actors.js';
 import { initHud, showHud, updateHud, loading, titleScreen, starterScreen, hideScreen, installShop, WEAPONS } from './hud.js';
 
@@ -15,7 +16,7 @@ const CAM_OFF = new V3(0, 10.5, 9.5), CAM_CAPTURE = new V3(0, 5.2, 6.4);
 
 class Game {
   constructor() {
-    LB.buildMap();
+    LB.useStage('valley');
     LB.initUI(null);
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
@@ -27,15 +28,17 @@ class Game {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, .1, 400);
     this.camera.position.set(10, 12, 40);
-    addEventListener('resize', () => { this.camera.aspect = innerWidth / innerHeight; this.camera.updateProjectionMatrix(); this.renderer.setSize(innerWidth, innerHeight); });
+    addEventListener('resize', () => { this.camera.aspect = innerWidth / innerHeight; this.camera.updateProjectionMatrix(); this.renderer.setSize(innerWidth, innerHeight); this.post && this.post.resize(); });
+    this.post = new Post(this.renderer, this.scene, this.camera);
     initHud(this); installShop(this);
-    this.world = buildWorld(this.scene, this.renderer);
-    this.fx = new FX(this.scene, this.camera, this.world.glowTex);
+    this.glowTex = glowTexture();
+    this.world = buildWorld(this.scene, this.renderer, this.glowTex);
+    this.fx = new FX(this.scene, this.camera, this.glowTex); this.stageBuilt = true;
     this.clock = new THREE.Clock(); this.t = 0;
     this.camTarget = new V3(12, 0, 30); this.camOff = CAM_OFF.clone();
     this.wild = []; this.shots = []; this.npcs = {}; this.player = null; this.ally = null;
     this.wCd = 0; this.wCdMax = .3; this.combo = 0; this.comboT = 0; this.petCd = 0; this.spcCd = 0; this.rollCd = 0; this.rollT = 0;
-    this.spawnT = 0; this.face = new V2(0, 1);
+    this.spawnT = 0; this.face = new V2(0, 1); this.yaw = 0; this.yawT = 0;
     this.setupInput();
     this.reticle = new THREE.Mesh(new THREE.RingGeometry(.45, .6, 32), new THREE.MeshBasicMaterial({ color: '#9feaf2', transparent: true, opacity: .9, depthWrite: false, side: THREE.DoubleSide }));
     this.reticle.rotation.x = -Math.PI / 2; this.reticle.visible = false; this.scene.add(this.reticle);
@@ -73,7 +76,9 @@ class Game {
   }
   startWorld(isNew) {
     hideScreen(); showHud(true);
-    const G = LB.G;
+    const G = LB.G; G.alphas = G.alphas || {}; G.alphaCaught = G.alphaCaught || {};
+    this.setStage(G.stage || 'valley');
+    if (LB.SOLID.has((LB.MAP[G.y] || [])[G.x]) || !LB.MAP[G.y]) { const e = LB.STAGES[LB.STAGE].entry; G.x = e[0]; G.y = e[1]; }
     const start = tileCenter(G.x, G.y);
     this.player = new Actor(this, { kind: 'player', trainer: G.player, x: start.x, z: start.z });
     Object.values(this.npcs).forEach(n => n.destroy()); this.npcs = {};
@@ -82,7 +87,98 @@ class Game {
     this.camTarget.set(start.x, 0, start.z);
     LB.mode = 'world'; LB.world = this;
     this.lastZone = '';
+    this.spawnAlpha();
     if (isNew) setTimeout(() => this.intro(), 600);
+  }
+  // ---------------- stages ----------------
+  setStage(id) {
+    if (this.world && LB.STAGE === id && this.stageBuilt) return;
+    const st = LB.useStage(id); this.stageBuilt = true;
+    if (this.world) this.world.dispose();
+    this.world = buildWorld(this.scene, this.renderer, this.glowTex);
+    LB.G && (LB.G.stage = id);
+    LB.audio.setStage(st.music); this.post.mood(st.mood);
+  }
+  async travel(id) {
+    const st = LB.STAGES[id], G = LB.G; if (!st) return;
+    LB.mode = 'busy'; this.fade.style.opacity = 1; LB.SFX.portal(); await LB.wait(550);
+    this.clearWild(); Object.values(this.npcs).forEach(n => n.destroy()); this.npcs = {};
+    this.setStage(id);
+    const [ex, ey] = st.entry, c = tileCenter(ex, ey); G.x = ex; G.y = ey;
+    this.player.pos.set(c.x, 0, c.z); this.player.vel.set(0, 0); this.camTarget.set(c.x, 0, c.z);
+    if (this.ally) this.ally.pos.set(c.x - 1, 0, c.z + .6);
+    LB.npcs().forEach(n => { const cc = tileCenter(n.x, n.y); const a = new Actor(this, { kind: 'npc', trainer: n.who, x: cc.x, z: cc.z }); a.npc = n; this.npcs[n.id] = a; });
+    this.spawnAlpha(); this.lastZone = '';
+    await LB.wait(250); this.fade.style.opacity = 0; LB.mode = 'world';
+    this.stageCard(st); LB.save(true);
+  }
+  stageCard(st) {
+    let el = document.getElementById('lb-stagecard');
+    if (!el) { el = document.createElement('div'); el.id = 'lb-stagecard'; document.body.appendChild(el); }
+    el.innerHTML = `<small>${st.lv ? 'Level ' + st.lv : ''}</small><b>${st.name}</b><span>${st.sub}</span>`;
+    el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+    clearTimeout(this.cardT); this.cardT = setTimeout(() => el.classList.remove('on'), 3200);
+  }
+  portalMenu() {
+    const G = LB.G, s = document.getElementById('lb-screen'); LB.mode = 'busy'; this.player.vel.set(0, 0);
+    s.innerHTML = `<h2>Lantern Gate</h2><p>Where should the gate take you?</p><div class="row">${LB.STAGE_ORDER.map(id => {
+      const st = LB.STAGES[id], open = st.unlocked(G), here = id === LB.STAGE, a = st.alpha;
+      const badge = a ? (G.alphaCaught[id] ? '★ Alpha caught' : G.alphas[id] ? '✓ Alpha beaten' : 'Alpha: ' + a.sp) : '';
+      return `<div class="tcard stage ${open ? '' : 'lock'} ${here ? 'here' : ''}" data-id="${id}"><div class="sw sw-${id}"></div><b>${st.name}</b><small>Lv ${st.lv}</small><small>${open ? (here ? 'You are here' : badge) : '🔒 ' + st.lockText}</small></div>`;
+    }).join('')}</div><button class="btn" id="gateX">Stay here</button>`;
+    s.classList.add('on');
+    const close = () => { s.classList.remove('on'); LB.mode = 'world'; LB.lastDialogEnd = performance.now(); };
+    s.querySelector('#gateX').onclick = () => { LB.SFX.sel(); close(); };
+    s.querySelectorAll('.tcard.stage').forEach(c => c.onclick = () => {
+      const id = c.dataset.id;
+      if (!LB.STAGES[id].unlocked(G)) { LB.SFX.bump(); LB.toast(LB.STAGES[id].lockText); return; }
+      s.classList.remove('on');
+      if (id === LB.STAGE) { close(); return; }
+      this.travel(id);
+    });
+  }
+  spawnAlpha() {
+    const st = LB.STAGES[LB.STAGE], a = st.alpha, G = LB.G;
+    if (!a || G.alphaCaught[st.id] || this.wild.some(u => u.alpha)) return;
+    const m = LB.mk(a.sp, a.lvl), c = tileCenter(a.at[0], a.at[1]);
+    const u = new Actor(this, { kind: 'wild', m, x: c.x, z: c.z, scale: 2.3, alpha: true });
+    u.alpha = st.id; u.maxHp = LB.unitMaxHp(m) * 4; m.hpA = u.maxHp; u.specT = 3; u.home = { x: c.x, z: c.z };
+    u.title = a.title; this.wild.push(u); G.seen[a.sp] = 1;
+  }
+  alphaSpecial(u, tgt) {
+    const P = this.player;
+    const pick = u.m.hpA < u.maxHp * .5 && !u.called ? 'call' : Math.random() < .5 ? 'slam' : 'nova';
+    if (pick === 'call') {   // calls two helpers once, at half health
+      u.called = true; LB.SFX.roar(); this.fx.shake(.4, .5); this.fx.text(new V3(u.x, u.h + 1.4, u.z), 'It calls for help!', '#ffb3a8', 18);
+      const Z = Object.values(LB.ZONES).filter(z => z.lv[0] >= 13 && LB.MAP.flat().some(c => LB.ZONES[c] === z));
+      for (let i = 0; i < 2; i++) { const z = Z[i % Z.length] || LB.ZONES[','], sp = z.t[LB.rnd(0, z.t.length - 1)]; const m = LB.mk(sp === '*' ? 'Loomtail' : sp, z.lv[0]); m.hpA = LB.unitMaxHp(m);
+        const a = i * Math.PI + rand(-.4, .4), x = u.x + Math.cos(a) * 3, zz = u.z + Math.sin(a) * 3; if (this.solidAt(x, zz)) continue;
+        const w = new Actor(this, { kind: 'wild', m, x, z: zz }); w.state = 'chase'; this.fx.burst(LB.MON[sp === '*' ? 'Loomtail' : sp].t, new V3(x, .5, zz), 14); this.wild.push(w); }
+      return;
+    }
+    if (pick === 'slam') {   // ground slam: a big red circle where you stand, then a shockwave
+      const p = tgt.pos.clone(), R = 3.2, dur = 1.0;
+      const m = new THREE.Mesh(new THREE.CircleGeometry(R, 40), new THREE.MeshBasicMaterial({ color: '#ff4a3a', transparent: true, opacity: 0, depthWrite: false }));
+      m.rotation.x = -Math.PI / 2; m.position.set(p.x, .08, p.z); this.scene.add(m);
+      this.fx.temp.push({ m, life: dur, max: dur, upd: k => { m.material.opacity = .12 + .35 * k; m.scale.setScalar(.3 + .7 * Math.min(1, k * 1.6)); } });
+      this.windup(u, dur * .7, () => {
+        u.lift = 0; this.fx.text(new V3(u.x, u.h + 1, u.z), 'SLAM!', '#ffb3a8', 20);
+        setTimeout(() => {
+          if (u.dead) return;
+          LB.SFX.boom(); this.fx.shake(.6, .35); this.fx.ring(p, '#ffb36a', .4, R + .6, .5); this.fx.burst(u.t, new V3(p.x, .3, p.z), 30, 1.4);
+          if (dist(P.pos, p) < R && P.iframes <= 0) this.hurtPlayer({ x: p.x, z: p.z });
+          if (this.ally && dist(this.ally.pos, p) < R) this.hitBy(this.ally, u, LB.specialMove(u.m.sp), 1.1);
+        }, dur * 300);
+      });
+      return;
+    }
+    // nova: a ring of shots in every direction
+    this.fx.ring(u.pos, '#ff4a3a', .5, 4, .8, .1);
+    this.windup(u, .8, () => {
+      LB.SFX.zap(); const k = LB.basicMove(u.m.sp), colr = { Ember: '#ff8a3c', Tide: '#4aa8e0', Gale: '#e8eeff', Glimmer: '#e4b8ff', Stone: '#b9a88c', Grove: '#9fd86a' }[u.t] || '#fff';
+      const n = 14, off = rand(0, 1);
+      for (let i = 0; i < n; i++) { const a = (i + off) / n * Math.PI * 2; this.shoot({ from: new V3(u.x, 1.2, u.z), dir: new V2(Math.cos(a), Math.sin(a)), speed: 9, owner: u, move: k, mult: .8, type: u.t, color: colr, size: .26 }); }
+    });
   }
   refreshNpcs() { LB.npcs().forEach(n => { const a = this.npcs[n.id]; if (!a) return; const c = tileCenter(n.x, n.y); a.pos.set(c.x, 0, c.z); a.npc = n; }); }
 
@@ -171,7 +267,7 @@ class Game {
   }
   weaponPress() {
     const G = LB.G, k = G.weapon; if (this.wCd > 0) return;
-    if (k === 'wand') { this.charging = true; this.charge = 0; return; }
+    if (k === 'wand') { this.charging = true; this.charge = 0; LB.SFX.charge(); return; }
     const { dir } = this.aimDir(k === 'staff' ? 3.2 : 12);
     this.face.copy(dir);
     if (k === 'staff') {
@@ -181,7 +277,7 @@ class Game {
       const side = this.combo === 2 ? -1 : 1;
       this.swing = { t: 0, dur: .16, from: Math.atan2(dir.x, dir.y) + side * arc / 2, to: Math.atan2(dir.x, dir.y) - side * arc / 2 };
       this.fx.swing(this.player.pos, ang, arc, R, big ? '#ffd23f' : '#d8fbff');
-      LB.SFX.throw();
+      LB.SFX.swing();
       this.enemies().forEach(u => {
         const dx = u.x - this.player.x, dz = u.z - this.player.z, d = Math.hypot(dx, dz);
         if (d > R + u.r) return;
@@ -193,14 +289,14 @@ class Game {
       this.wCd = this.wCdMax = .45;
       const P = this.player, from = new V3(P.x + dir.x * .5, 1.1, P.z + dir.y * .5);
       this.shoot({ from, dir, speed: 17, vy: 2.2, g: -7, owner: this.player, type: 'Stone', color: '#b9b2a4', size: .13, weapon: 'sling', range: 1.1, mesh: 'stone' });
-      LB.SFX.sel();
+      LB.SFX.sling();
     }
   }
   weaponRelease() {
     if (!this.charging) return;
     this.charging = false; const c = Math.min(1, this.charge || 0);
     const { dir } = this.aimDir(14); this.face.copy(dir);
-    this.wCd = this.wCdMax = .45;
+    this.wCd = this.wCdMax = .45; LB.SFX.zap();
     const P = this.player, from = new V3(P.x + dir.x * .6, 1.2, P.z + dir.y * .6);
     this.shoot({ from, dir, speed: 15 + c * 6, vy: 0, g: 0, owner: this.player, type: 'Glimmer', color: c > .6 ? '#ffd23f' : '#e4b8ff', size: .16 + c * .3, weapon: 'wand', mult: .6 + c * 2.2, pierce: c > .6, range: 1.3 });
     if (c > .6) this.fx.shake(.15, .1);
@@ -223,7 +319,7 @@ class Game {
       const p = s.mesh.position;
       s.trailT -= dt; if (s.trailT <= 0 && s.mesh.geometry.type !== 'DodecahedronGeometry') { s.trailT = .03; this.fx.glowAt(p.clone(), s.color, s.size * 4, .25); }
       const c = charAt(p.x, p.z);
-      const blocked = !c || 'TRHWSPM'.includes(c) && p.y < 2;
+      const blocked = !c || 'TRHWSPMCLO'.includes(c) && p.y < 2;
       if (s.life <= 0 || p.y < 0 || blocked) { this.fx.burst(s.type, p, 6, .6); this.removeShot(s); return false; }
       const foes = s.owner.kind === 'player' || s.owner.kind === 'ally' ? this.enemies() : [this.player, this.ally].filter(Boolean);
       for (const t of foes) {
@@ -284,6 +380,14 @@ class Game {
       return;
     }
     u.state = 'dazed'; u.dazeT = LB.DAZE_TIME / 1000; u.vel.set(0, 0);
+    if (u.alpha) {
+      u.dazeT = 30; LB.SFX.roar(); this.fx.shake(.5, .4);
+      const first = !G.alphas[u.alpha]; G.alphas[u.alpha] = 1;
+      const nxt = LB.STAGE_ORDER[LB.STAGE_ORDER.indexOf(u.alpha) + 1];
+      this.fx.text(new V3(u.x, u.h + 2.4, u.z), 'ALPHA DEFEATED!', '#ffd23f', 28);
+      if (first) setTimeout(() => LB.toast(nxt ? `A new path opened: ${LB.STAGES[nxt].name}! Use the Lantern Gate.` : 'You beat every alpha. You are a true Lanternbound!'), 1200);
+      G.items.salve += 2; LB.save(true);
+    }
     this.fx.text(new V3(u.x, u.h + 1.6, u.z), 'Dazed! Throw a lantern (E)', '#9feaf2', 15);
   }
   giveXp(g) {
@@ -301,8 +405,8 @@ class Game {
     if (this.blacking) return; this.blacking = true; LB.mode = 'busy';
     this.fade.style.opacity = 1; await LB.wait(600);
     this.clearWild(); if (this.fight) this.fight.cancel(true);
-    LB.healAll(); const G = LB.G; G.x = 4; G.y = 19; const c = tileCenter(4, 19);
-    this.player.pos.set(c.x, 0, c.z); this.spawnAlly(); this.camTarget.set(c.x, 0, c.z);
+    LB.healAll(); const G = LB.G, rp = LB.STAGES[LB.STAGE].respawn || [4, 19]; G.x = rp[0]; G.y = rp[1]; const c = tileCenter(rp[0], rp[1]);
+    this.player.pos.set(c.x, 0, c.z); this.spawnAlly(); this.camTarget.set(c.x, 0, c.z); this.spawnAlpha();
     this.fade.style.opacity = 0; LB.mode = 'world'; this.blacking = false;
     await LB.dialog(['Everything went dark…', 'You wake up beside the shrine. Everyone is rested now.']);
     LB.save(true);
@@ -367,7 +471,7 @@ class Game {
   spawnWild(dt) {
     this.spawnT -= dt; if (this.spawnT > 0 || this.fight) return; this.spawnT = 1.2;
     const P = this.player;
-    this.wild.slice().forEach(u => { if (u.kind === 'wild' && dist(P.pos, u.pos) > 34) { u.destroy(); this.wild.splice(this.wild.indexOf(u), 1); } });
+    this.wild.slice().forEach(u => { if (u.kind === 'wild' && !u.alpha && dist(P.pos, u.pos) > 34) { u.destroy(); this.wild.splice(this.wild.indexOf(u), 1); } });
     if (this.wild.filter(u => u.kind === 'wild').length >= LB.WILD_CAP) return;
     for (let i = 0; i < 14; i++) {
       const x = P.x + rand(-17, 17), z = P.z + rand(-14, 12), c = charAt(x, z), Z = LB.ZONES[c];
@@ -393,15 +497,16 @@ class Game {
     if (u.state === 'lunge') { this.updateLunge(u, dt, [this.player, this.ally]); return; }
     if (u.state === 'windup') { u.windT -= dt; u.pivot.position.x = Math.sin(this.t * 60) * .05; if (u.windT <= 0) { u.pivot.position.x = 0; u.tint(); u.state = 'chase'; u.doAttack(); } this.move(u, u.kb.x * dt, u.kb.y * dt); u.kb.multiplyScalar(Math.pow(.02, dt)); return; }
     const P = this.player, targets = [P, this.ally].filter(t => t && !t.dead);
-    let tgt = null, td = u.kind === 'boss' ? 18 : 7.5;
+    let tgt = null, td = u.kind === 'boss' ? 18 : u.alpha ? 11 : 7.5;
     targets.forEach(t => { const d = dist(u.pos, t.pos); if (d < td) { td = d; tgt = t; } });
     const base = (38 + LB.statsOf(u.m).spd * 1.1) / 16 * (u.kind === 'boss' ? 1.25 : 1);
     let vx = 0, vz = 0;
     if (!tgt) {
       u.wanderT -= dt;
       if (u.wanderT <= 0) { u.wanderT = rand(1.5, 3); const a = rand(0, 6.28); u.wdir = Math.random() < .35 ? null : new V2(Math.cos(a), Math.sin(a)); }
-      if (u.wdir) { const nc = charAt(u.x + u.wdir.x, u.z + u.wdir.y); if (u.kind === 'wild' && !LB.ZONES[nc]) u.wdir = null; else { vx = u.wdir.x * base * .4; vz = u.wdir.y * base * .4; } }
+      if (u.wdir) { const nc = charAt(u.x + u.wdir.x, u.z + u.wdir.y); if (u.alpha ? nc !== 'A' : (u.kind === 'wild' && !LB.ZONES[nc])) u.wdir = null; else { vx = u.wdir.x * base * .4; vz = u.wdir.y * base * .4; } }
     } else {
+      if (u.alpha && (u.specT -= dt) <= 0) { u.specT = rand(3.2, 4.6); u.cd = Math.max(u.cd, 1.2); this.alphaSpecial(u, tgt); if (u.state === 'windup') return; }
       const dx = tgt.x - u.x, dz = tgt.z - u.z, d = Math.hypot(dx, dz) || 1, nx = dx / d, nz = dz / d;
       if (u.style.kind === 'shot') {
         const want = td > 8 ? 1 : td < 4.5 ? -1 : 0, side = Math.sin(this.t * 1.6 + u.bob) * .6;
@@ -510,7 +615,7 @@ class Game {
   captureWin() {
     const c = this.capture, G = LB.G, m = c.u.m;
     LB.SFX.caught(); this.fx.burst('Glimmer', new V3(c.u.x, 1, c.u.z), 34, 1.3); this.fx.ring(c.u.pos, '#ffd23f', .5, 5, .6);
-    const first = !G.caught[m.sp]; G.caught[m.sp] = 1;
+    const first = !G.caught[m.sp]; G.caught[m.sp] = 1; if (c.u.alpha) G.alphaCaught[c.u.alpha] = 1;
     m.xp = 0; m.hpA = Math.round(LB.unitMaxHp(m) * .6); m.hp = LB.statsOf(m).hp;
     const full = G.party.length >= 6; if (!full) G.party.push(m); else G.box.push(m);
     this.fx.text(new V3(c.u.x, 3.3, c.u.z), `${m.sp} joined you!`, '#ffffff', 24);
@@ -561,13 +666,14 @@ class Game {
     for (const id in this.npcs) { const n = this.npcs[id]; if (dist(P.pos, n.pos) < 1.9) return { npc: n.npc }; }
     for (const [dx, dz] of [[0, -1], [0, 1], [-1, 0], [1, 0], [0, 0]]) {
       const tx = Math.floor(P.x / S) + dx, tz = Math.floor(P.z / S) + dz, c = LB.MAP[tz] && LB.MAP[tz][tx];
-      if (c && 'SMPH'.includes(c)) { const cc = tileCenter(tx, tz); if (Math.hypot(cc.x - P.x, cc.z - P.z) < 2.1) return { tx, ty: tz, c }; }
+      if (c && 'SMPHO'.includes(c)) { const cc = tileCenter(tx, tz); if (Math.hypot(cc.x - P.x, cc.z - P.z) < 2.1) return { tx, ty: tz, c }; }
     }
     return null;
   }
   async interact() {
     const t = this.nearInteract(); if (!t || this.fight) return;
     this.player.vel.set(0, 0);
+    if (t.c === 'O') { this.portalMenu(); return; }
     if (t.npc) await LB.story.interact(t.npc.x, t.npc.y); else await LB.story.interact(t.tx, t.ty);
     this.refreshNpcs(); this.spawnAllyIfChanged(); this.refreshWeapon();
   }
@@ -575,7 +681,7 @@ class Game {
   // ---------------- main loop ----------------
   loop() {
     requestAnimationFrame(() => this.loop());
-    let dt = Math.min(.05, this.clock.getDelta()); this.t += dt;
+    const raw = this.clock.getDelta(); let dt = Math.min(.05, raw); this.t += dt;
     if (this.hitStop > 0) { this.hitStop -= dt; dt *= .15; }
     if (LB.mode === 'world' || LB.mode === 'capture') this.step(dt);
     else if (LB.mode === 'title') { const a = this.t * .06; this.camTarget.set(12 + Math.cos(a) * 3, 0, 32); this.camOff.set(Math.cos(a) * 14, 9, Math.sin(a) * 14 + 4); }
@@ -584,13 +690,16 @@ class Game {
     if (P && LB.mode !== 'title') { this.camTarget.lerp(new V3(P.x, 0, P.z), Math.min(1, dt * 6)); this.camOff.lerp(this.capture ? CAM_CAPTURE : CAM_OFF, Math.min(1, dt * 3)); }
     const sh = this.fx.shakeOffset();
     const zoom = this.camera.aspect < 1 ? 1.75 : this.camera.aspect < 1.3 ? 1.25 : 1;   // pull back on tall/narrow screens
-    this.camera.position.set(this.camTarget.x + this.camOff.x * zoom + sh.x, this.camTarget.y + this.camOff.y * zoom + sh.y, this.camTarget.z + this.camOff.z * zoom);
+    this.yaw += (this.yawT - this.yaw) * Math.min(1, dt * 8);
+    const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
+    const ox = this.camOff.x * cy + this.camOff.z * sy, oz = -this.camOff.x * sy + this.camOff.z * cy;
+    this.camera.position.set(this.camTarget.x + ox * zoom + sh.x * cy, this.camTarget.y + this.camOff.y * zoom + sh.y, this.camTarget.z + oz * zoom - sh.x * sy);
     this.camera.lookAt(this.camTarget.x, .8, this.camTarget.z);
     this.world.update(this.t, dt, P ? P.pos : this.camTarget);
     this.fx.update(dt);
     if (P) { [P, this.ally, ...this.wild, ...Object.values(this.npcs)].forEach(a => a && !a.dead && a.updateLabel && a.updateLabel(this.fx)); updateHud(this); this.updatePrompt(); }
     this.pressed.clear(); this.released.clear();
-    this.renderer.render(this.scene, this.camera);
+    this.post.focus(!!this.capture); this.post.render(raw);
   }
   updatePrompt() {
     const P = this.player; let txt = '', at = null;
@@ -632,7 +741,11 @@ class Game {
     let ix = 0, iz = 0;
     if (K.KeyA || K.ArrowLeft) ix -= 1; if (K.KeyD || K.ArrowRight) ix += 1; if (K.KeyW || K.ArrowUp) iz -= 1; if (K.KeyS || K.ArrowDown) iz += 1;
     if (LB.stick && Math.hypot(LB.stick.x, LB.stick.y) > .2) { ix = LB.stick.x; iz = LB.stick.y; }
-    const inp = new V2(ix, iz); if (inp.lengthSq() > 1) inp.normalize();
+    if (Pr.has('KeyG')) LB.toast(this.post.toggle() ? 'Graphics: beautiful' : 'Graphics: fast');
+    if (Pr.has('KeyZ') || q.includes('camL')) this.yawT -= Math.PI / 4;
+    if (Pr.has('KeyX') || q.includes('camR')) this.yawT += Math.PI / 4;
+    const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);   // screen-right = (cy,-sy), toward camera = (sy,cy)
+    const inp = new V2(ix * cy + iz * sy, -ix * sy + iz * cy); if (inp.lengthSq() > 1) inp.normalize();
     if (inp.lengthSq() > .04 && !this.swing) this.face.copy(inp).normalize();
     this.wCd -= rdt; this.comboT -= rdt; this.petCd -= dt; this.spcCd -= dt; this.rollCd -= rdt; P.iframes -= rdt;
     if (this.rollT > 0) {
@@ -645,6 +758,7 @@ class Game {
       P.vel.lerp(new V2(inp.x * top, inp.y * top), Math.min(1, rdt * 12));
       this.move(P, (P.vel.x + P.kb.x) * rdt, (P.vel.y + P.kb.y) * rdt); P.kb.multiplyScalar(Math.pow(.02, rdt));
       if (P.vel.length() > 3 && (this.dustT = (this.dustT || 0) - rdt) <= 0) { this.dustT = .16; this.fx.dust(P.pos, 2); }
+      if (P.vel.length() > 2.5 && (this.stepT = (this.stepT || 0) - rdt) <= 0) { this.stepT = .29; LB.audio.step(this.surfaceAt(P.x, P.z)); }
     }
     P.mat.opacity = 1; P.obj.visible = !(P.iframes > 0 && this.rollT <= 0 && Math.floor(this.t * 14) % 2);
     this.updateWeaponPose(rdt);
@@ -653,19 +767,35 @@ class Game {
     this.updateShots(dt);
     this.updateFlying(rdt);
     this.spawnWild(rdt);
+    // music intensity: boss > combat (enemy close or hostile) > explore
+    const hostile = this.wild.some(u => !u.dead && u.state !== 'dazed' && u.state !== 'captured' && (u.kind === 'boss' || ['chase', 'windup', 'lunge'].includes(u.state)) && dist(P.pos, u.pos) < 14);
+    LB.audio.setIntensity(this.wild.some(u => !u.dead && u.alpha && u.state !== 'dazed' && dist(P.pos, u.pos) < 22) ? 2 : (this.fight || hostile) ? 1 : 0);
     if (this.fight && Math.hypot(P.x - this.fight.cx, P.z - this.fight.cz) > 20) this.fight.cancel();
     // --- visuals ---
-    P.animate(rdt, P.vel.length() > .6 || this.rollT > 0);
-    if (this.ally) this.ally.animate(dt, this.ally.vel.length() > .6);
-    this.wild.forEach(u => !u.dead && u.state !== 'captured' && u.animate(dt, u.vel.length() > .4));
-    Object.values(this.npcs).forEach(n => n.animate(rdt, false));
+    this.orient(P, this.swing || this.charging || this.aiming ? this.face : (P.vel.length() > .6 ? P.vel : null));
+    P.animate(rdt, P.vel.length() > .6 || this.rollT > 0, this.yaw);
+    if (this.ally) { this.orient(this.ally, this.ally.vel.length() > .6 ? this.ally.vel : null); this.ally.animate(dt, this.ally.vel.length() > .6, this.yaw); }
+    this.wild.forEach(u => { if (u.dead || u.state === 'captured') return; this.orient(u, u.vel.length() > .4 ? u.vel : new V2(P.x - u.x, P.z - u.z)); u.animate(dt, u.vel.length() > .4, this.yaw); });
+    Object.values(this.npcs).forEach(n => { this.orient(n, dist(P.pos, n.pos) < 5 ? new V2(P.x - n.x, P.z - n.z) : null); n.animate(rdt, false, this.yaw); });
     G.x = Math.floor(P.x / S); G.y = Math.floor(P.z / S);
     const z = LB.zoneAt(G.x, G.y); if (z !== this.lastZone) { this.lastZone = z; LB.toast(LB.ZONE_NAMES[z]); }
+  }
+  // choose each character's drawing (front / ¾ / side / back) from its direction as seen by the camera
+  orient(a, dir) {
+    if (!a) return;
+    if (dir) a.look.set(dir.x, dir.y).normalize();
+    const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
+    const sx = a.look.x * cy - a.look.y * sy, sz = a.look.x * sy + a.look.y * cy;
+    a.sv = a.vel.x * cy - a.vel.y * sy; a.face(sx, sz);
+  }
+  surfaceAt(x, z) {
+    const c = charAt(x, z);
+    return ({ '=': 'wood', B: 'wood', '.': 'dirt', ':': 'dirt', '_': 'stone', '#': 'stone', c: 'stone', k: 'stone', w: 'water', ',': 'grass', ';': 'grass', g: 'grass', r: 'stone', G: 'grass', s: 'sand' })[c] || 'grass';
   }
   roll() {
     if (this.rollCd > 0 || this.rollT > 0) return;
     const P = this.player; this.rollDir = P.vel.length() > .5 ? P.vel.clone().normalize() : this.face.clone();
-    this.rollT = .24; this.rollCd = .75; P.iframes = .4; P.rolling = true; LB.SFX.throw(); this.fx.dust(P.pos, 6);
+    this.rollT = .24; this.rollCd = .75; P.iframes = .4; P.rolling = true; LB.SFX.roll(); this.fx.dust(P.pos, 6);
   }
   updateWeaponPose(dt) {
     const w = this.weaponPivot; if (!w) return;
@@ -678,7 +808,8 @@ class Game {
       return;
     }
     const side = P.flip ? -1 : 1, bob = Math.sin(this.t * (P.vel.length() > .6 ? 14 : 2)) * .04;
-    w.position.set(.48 * side, .95 + bob, .12); w.rotation.set(0, 0, 0);
+    const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
+    w.position.set(.48 * side * cy + .12 * sy, .95 + bob, -.48 * side * sy + .12 * cy); w.rotation.set(0, this.yaw, 0);
     if (LB.G.weapon === 'staff') this.weapon.rotation.set(0, 0, -.25 * side);
     else if (LB.G.weapon === 'sling') this.weapon.rotation.set(-.3, 0, -.4 * side);
     else this.weapon.rotation.set(this.charging ? -1.1 : -.2, 0, -.3 * side);

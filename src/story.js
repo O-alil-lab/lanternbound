@@ -49,11 +49,11 @@ LB.story = {
         }
         return;
       case 'rival':
-        if (beat.rival) { await LB.dialog(["Next time I'll win. The ridge is past the reeds to the north-east."], who); return; }
+        if (beat.rival) { await LB.dialog(["Next time I'll win. The ridge is past the reeds to the north-east, and the Lantern Gate is in the grove to the south-east."], who); return; }
         await LB.dialog([`Hey ${G.player}! I picked ${LB.rivalStarter()} because it beats yours.`, 'Nobody crosses this bridge until I say so!'], who);
         if (await LB.world.trainerFight(n, [LB.mk('Tasselk', 7), LB.mk(LB.rivalStarter(), 8)])) {
           reward('salve', 2);
-          await LB.dialog(['Hmph… fine. Take 2 salves. Rumor says the Warden waits on top of Cairn Ridge.'], who);
+          await LB.dialog(['Hmph… fine. Take 2 salves. Rumor says the Warden waits on top of Cairn Ridge.', 'And… the old Lantern Gate in Amberroot Grove woke up when we fought. It leads to the Crystal Caverns. A giant alpha lives down there.'], who);
         }
         return;
       case 'angler':

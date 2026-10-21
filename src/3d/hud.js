@@ -80,6 +80,21 @@ const CSS = `
 #lb-screen .bar{width:340px;height:16px;border:3px solid #fff;border-radius:10px;overflow:hidden;background:rgba(0,0,0,.3)}
 #lb-screen .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2f7f86,#7fe6f5)}
 .wshop h4{font-family:Fraunces,serif;margin:12px 0 6px}
+#lb-screen .tcard.stage{width:190px;padding:0 0 10px;overflow:hidden;gap:3px}
+#lb-screen .tcard.stage .sw{width:100%;height:92px;margin-bottom:6px;border-bottom:3px solid #3b2f20}
+#lb-screen .tcard.stage small{font-weight:800;color:#6b5a44;font-size:12px;padding:0 8px}
+#lb-screen .tcard.stage.lock{filter:grayscale(.85) brightness(.8);cursor:not-allowed}
+#lb-screen .tcard.stage.here{box-shadow:0 0 0 4px #9feaf2,0 5px 0 rgba(0,0,0,.3)}
+.sw-valley{background:radial-gradient(circle at 70% 30%,#fff6c8 0 10%,transparent 11%),linear-gradient(180deg,#9fd0ec,#cfe8d0 55%,#6a9a3c 56%,#4d7c38)}
+.sw-caverns{background:radial-gradient(circle at 30% 70%,#7fe6f5 0 6%,transparent 18%),radial-gradient(circle at 72% 60%,#b48cff 0 5%,transparent 16%),linear-gradient(180deg,#0a0a14,#25223a 60%,#3d3a4e)}
+.sw-ember{background:radial-gradient(ellipse at 50% 80%,#ff7a2a 0 18%,transparent 40%),linear-gradient(180deg,#5a2414,#2a1410 60%,#3b3230)}
+.sw-lake{background:radial-gradient(circle at 25% 25%,#f4f6ff 0 7%,transparent 8%),linear-gradient(180deg,#1a2a55,#0b1530 55%,#3a6ea8 56%,#22303a)}
+#lb-screen .btn{margin-top:14px}
+#lb-stagecard{position:fixed;left:50%;top:22%;transform:translate(-50%,-10px);z-index:12;pointer-events:none;text-align:center;opacity:0;transition:opacity .6s,transform .6s;font-family:Fraunces,serif;color:#fff;text-shadow:0 3px 0 #2b2418,0 0 24px rgba(0,0,0,.6)}
+#lb-stagecard.on{opacity:1;transform:translate(-50%,0)}
+#lb-stagecard b{display:block;font-size:clamp(30px,6vw,58px);font-weight:800;letter-spacing:1px}
+#lb-stagecard span{display:block;font-family:Nunito,sans-serif;font-weight:800;font-size:16px;margin-top:4px}
+#lb-stagecard small{display:block;font-family:Nunito,sans-serif;font-weight:800;letter-spacing:3px;text-transform:uppercase;font-size:12px;color:#ffc46e}
 `;
 
 const HEART = full => `<svg viewBox="0 0 26 24"><path d="M13 22 C4 15 1 11 1 7 A6 6 0 0 1 13 4 A6 6 0 0 1 25 7 C25 11 22 15 13 22Z" fill="${full ? '#e0533f' : '#5c4a3a'}" stroke="#2b2418" stroke-width="2"/></svg>`;
@@ -100,7 +115,7 @@ export function initHud(game) {
     </div>
     <div class="help"><b>WASD</b> move · <b>Left-click / J</b> weapon (hold with the wand to charge) · <b>1 2 3</b> weapons<br>
       <b>Right-click / K</b> companion attack · <b>L</b> special · <b>Space</b> roll<br>
-      <b>E</b> aim + throw lantern (<b>R</b> type) · <b>Q</b> switch companion · <b>H</b> salve · <b>F</b> talk · <b>?</b> help</div>`;
+      <b>E</b> aim + throw lantern (<b>R</b> type) · <b>Q</b> switch companion · <b>H</b> salve · <b>F</b> talk / gate<br><b>Z X</b> turn camera · <b>G</b> graphics · <b>?</b> help</div>`;
   document.body.appendChild(hud);
   hud.querySelectorAll('.wslot').forEach(el => el.addEventListener('pointerdown', e => { e.preventDefault(); game.selectWeapon(el.dataset.w); }));
   const screen = document.createElement('div'); screen.id = 'lb-screen'; document.body.appendChild(screen);
