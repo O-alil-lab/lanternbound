@@ -24,6 +24,16 @@ JavaScript, no build step. Six trainers, eighteen companions drawn as paper-styl
 - **Fits every screen**: phones (upright or sideways), tablets and computers get their own HUD size,
   touch controls, camera distance and render resolution; notches and rounded corners are respected;
   full-screen button on phones.
+- **A living world**: day and night in Hollow Valley (some companions only come out at night), rain with
+  thunder, wind in the grass, birds that fly off when you run at them, butterflies, jumping fish, village
+  pets and strolling villagers. Wild companions sleep, notice you (!), run away if timid, roam in herds,
+  and very rarely appear **shiny** (★).
+- **Quests and exploration**: villagers give quests (! / ?), a notice board with a daily challenge and the
+  hunt for 8 lantern shards, 9 treasure chests, 5 old lanterns to relight, a lost Drapplet. Quest log 📜 / P.
+- **Companion bond**: walk, fight and pet (stand still next to it, F / A) to raise the bond ❤. At 100 your
+  companion awakens: golden aura and **Bond Burst**.
+- **Deeper combat**: perfect dodge (slow motion + critical hit), type reactions (Steam, Blaze, Storm, Mud,
+  Prism…), duo hits with your companion, sneak attacks on sleepers, elite companions with a golden aura.
 - **Guided first encounter**: a calm Loomtail in the village grass teaches strike, combo, daze, lantern and
   ring one step at a time (no hearts lost); short coach hints after that, and a full controls sheet on **?**.
 - Trainer and companion pickers with a confirmation panel (keyboard and screen-reader friendly).
@@ -64,6 +74,10 @@ src/                  shared plain scripts
   state.js            stats, XP, save / load, damage formula
   map.js            ★ the valley layout (30×22 tile grid, legend at the top)
   3d/coach.js         hints, help sheet and the guided first encounter
+  3d/life.js          day/night, weather, critters, pets, wild moods, shinies
+  3d/quests.js        quests, notice board, chests, shards, old lanterns
+  3d/bond.js          companion bond, emotes, petting, Bond Burst
+  3d/combat.js        perfect dodge, type reactions, duo, elites
   i18n.js           ★ all texts in English, French and Arabic
   screen.js           device type, HUD scale, safe areas, camera distance, full screen
   stages.js         ★ the other stages: maps, looks, wild zones, alphas, unlock rules

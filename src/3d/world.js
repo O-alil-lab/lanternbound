@@ -67,13 +67,13 @@ export function glowTexture() {
 // Wind: bends geometry above the ground; `bend` = how much, uses world position for variety.
 function addWind(mat, uniforms, bend, grass) {
   mat.onBeforeCompile = sh => {
-    sh.uniforms.uTime = uniforms.uTime; sh.uniforms.uPlayer = uniforms.uPlayer;
-    sh.vertexShader = 'uniform float uTime;\nuniform vec3 uPlayer;\nvarying float vH;\n' + sh.vertexShader.replace('#include <begin_vertex>', `
+    sh.uniforms.uTime = uniforms.uTime; sh.uniforms.uPlayer = uniforms.uPlayer; sh.uniforms.uWind = uniforms.uWind;
+    sh.vertexShader = 'uniform float uTime;\nuniform vec3 uPlayer;\nuniform float uWind;\nvarying float vH;\n' + sh.vertexShader.replace('#include <begin_vertex>', `
       #include <begin_vertex>
       vec4 wp = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
       float hgt = max(position.y, 0.0);
       vH = clamp(position.y, 0.0, 1.0);
-      float w = sin(uTime * 1.7 + wp.x * 0.55 + wp.z * 0.35) * ${bend.toFixed(3)} * hgt;
+      float w = (sin(uTime * 1.7 * (0.6 + 0.4 * uWind) + wp.x * 0.55 + wp.z * 0.35) + (uWind - 1.0) * 0.8) * ${bend.toFixed(3)} * hgt * uWind;
       transformed.x += w; transformed.z += w * 0.45;
       ${grass ? `
       vec2 away = wp.xz - uPlayer.xz; float dd = length(away);
@@ -87,7 +87,7 @@ function addWind(mat, uniforms, bend, grass) {
 export function buildWorld(scene, renderer, glowTex) {
   const ST = LB.STAGES[LB.STAGE] || LB.STAGES.valley, TH = ST.theme;
   const MW = LB.MW, MH = LB.MH, W = MW * S, H = MH * S;
-  const uniforms = { uTime: { value: 0 }, uPlayer: { value: new THREE.Vector3() } };
+  const uniforms = { uTime: { value: 0 }, uPlayer: { value: new THREE.Vector3() }, uWind: { value: 1 } };
   glowTex = glowTex || glowTexture();
   const root = new THREE.Group(); scene.add(root);
   const add = (...o) => root.add(...o);
@@ -115,7 +115,7 @@ export function buildWorld(scene, renderer, glowTex) {
     sky.add(moon, disc);
   }
 
-  add(new THREE.HemisphereLight(TH.hemi[0], TH.hemi[1], TH.hemi[2]));
+  const hemi = new THREE.HemisphereLight(TH.hemi[0], TH.hemi[1], TH.hemi[2]); add(hemi);
   const sun = new THREE.DirectionalLight(TH.sun[0], TH.sun[1]);
   sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
   const sc = sun.shadow.camera; sc.left = -22; sc.right = 22; sc.top = 22; sc.bottom = -22; sc.near = 1; sc.far = 70;
@@ -456,5 +456,5 @@ export function buildWorld(scene, renderer, glowTex) {
     scene.remove(root);
     root.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(m => { if (m.map && m.map !== glowTex) m.map.dispose(); m.dispose(); }); });
   }
-  return { update, heightAt, glowTex, dispose, portal, arena };
+  return { update, heightAt, glowTex, dispose, portal, arena, sun, hemi, sky, uniforms, add, root, theme: TH, lights };
 }

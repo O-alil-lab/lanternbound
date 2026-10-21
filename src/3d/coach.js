@@ -118,6 +118,8 @@ html body.dev-phone #lb-help dl{font-size:13px}
         [t ? 'A' : 'F', LB.t('talk, read, open a gate')],
         [t ? '🌿' : 'H', LB.t('use a salve and restore a heart')],
         [t ? '⇄' : 'Q', LB.t('switch companion')],
+        [t ? 'A' : 'F', LB.t('stand still next to your companion to pet it (bond ❤)')],
+        [t ? '📜' : 'P', LB.t('quest log')],
         ['?', LB.t('open this sheet')]
       ]]
     ];
@@ -183,7 +185,7 @@ html body.dev-phone #lb-help dl{font-size:13px}
       shown = 'camera';
     } else if (!shown && !seen('t.meadow') && !seen('firstfight') && walked > .35) {
       shown = 'meadow';
-    } else if (!shown && ni && !seen('t.talk')) {
+    } else if (!shown && ni && !ni.extra && !seen('t.talk')) {
       shown = 'talk';
     } else if (!shown && LB.G.hearts <= 3 && LB.G.items.salve > 0 && !seen('t.salve')) {
       shown = 'salve';

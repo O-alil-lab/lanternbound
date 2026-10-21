@@ -418,3 +418,77 @@ Object.assign(LB.I18N.ar, {
   'That is the whole loop: weaken, daze, lantern': 'هذه هي الطريقة كلها: أضعِف، اذهِل، ثم الفانوس', 'Open ? any time to see every control.': 'افتح ? في أي وقت لرؤية كل أزرار التحكّم.',
   'Safe — this one is only training you': 'لا خطر — هذا الرفيق يدرّبك فقط', 'Loomtail joined your party — open Party to see it.': 'انضمّ Loomtail إلى فريقك — افتح «الفريق» لتراه.'
 });
+
+// ------------------------------------------------------------ living world, quests, bond, combat
+Object.assign(LB.I18N.fr, {
+  // world
+  'Night': 'Nuit', 'Dawn': 'Aube', 'Day': 'Jour', 'Evening': 'Soir',
+  'Night falls. Some companions only come out now…': 'La nuit tombe. Certains compagnons ne sortent que maintenant…',
+  'The sun rises over the valley': 'Le soleil se lève sur la vallée', 'Full daylight': 'Plein jour', 'Evening light': 'Lumière du soir',
+  'It starts to rain…': 'Il commence à pleuvoir…', 'The wind picks up': 'Le vent se lève', 'A shiny {c} appeared!': 'Un {c} chromatique est apparu !',
+  'Pet': 'Caresser', 'Light': 'Allumer', 'Open': 'Ouvrir', 'Read': 'Lire', 'Use': 'Utiliser',
+  // combat
+  'ELITE': 'ÉLITE', 'Sneak attack!': 'Attaque surprise !', 'Duo!': 'Duo !', 'Perfect dodge!': 'Esquive parfaite !', 'Next hit is critical': 'Le prochain coup est critique',
+  'Elite reward: +{n} coins, {i}': 'Récompense d’élite : +{n} pièces, {i}',
+  'Steam': 'Vapeur', 'Blaze': 'Embrasement', 'Firestorm': 'Tempête de feu', 'Mud': 'Boue', 'Sandstorm': 'Tempête de sable', 'Storm': 'Orage',
+  'Pollen': 'Pollen', 'Bloom': 'Floraison', 'Magma': 'Magma', 'Prism': 'Prisme',
+  // bond
+  'Bond': 'Lien', 'Friend': 'ami', 'Close friend': 'meilleur ami', 'Awakened': 'compagnon éveillé',
+  '{c} is now your {t}!': '{c} est maintenant votre {t} !', 'Its special move is now BOND BURST': 'Son attaque spéciale devient EXPLOSION DU LIEN', 'BOND BURST!': 'EXPLOSION DU LIEN !',
+  'stand still next to your companion to pet it (bond ❤)': 'restez immobile près de votre compagnon pour le caresser (lien ❤)', 'quest log': 'journal des quêtes',
+  // quests
+  'Quests': 'Quêtes', 'Daily challenge': 'Défi du jour', 'Daily challenge complete!': 'Défi du jour réussi !', 'Daily challenge: {t}': 'Défi du jour : {t}',
+  'A new challenge is posted every day.': 'Un nouveau défi est affiché chaque jour.', 'Done': 'Fini', 'Reward': 'Récompense', 'From': 'De', 'Return to {n}': 'Retournez voir {n}',
+  'the notice board': 'le panneau d’affichage', 'New quest: {q}': 'Nouvelle quête : {q}', 'Quest complete: {q}! Go back to {n}.': 'Quête accomplie : {q} ! Retournez voir {n}.',
+  'You did it: {q}!': 'Vous avez réussi : {q} !', 'Here is your reward: {r}.': 'Voici votre récompense : {r}.', 'I have a favour to ask…': 'J’ai un service à vous demander…',
+  'Treasure!': 'Trésor !', 'Old lantern relit ({n}/5)': 'Vieille lanterne rallumée ({n}/5)', 'Lantern shard found! ({n}/8)': 'Éclat de lanterne trouvé ! ({n}/8)',
+  'Lantern shards': 'Éclats de lanterne', 'Chests': 'Coffres', 'Old lanterns': 'Vieilles lanternes', 'The Drapplet hops happily back home!': 'Le Drapplet rentre chez lui en sautillant de joie !',
+  'NOTICE: Lantern shards have been seen glowing in all four lands. Whoever brings back all 8 earns a Warden Lantern.': 'AVIS : des éclats de lanterne brillent dans les quatre terres. Qui les rapportera tous les 8 gagnera une Lanterne du Gardien.',
+  'No quests yet. Talk to villagers with a ! above their head, and read the notice board in the village.': 'Pas encore de quête. Parlez aux villageois qui ont un ! au-dessus de la tête et lisez le panneau du village.',
+  'First Friends': 'Premiers amis', 'Befriend 3 new companions with your lanterns.': 'Liez-vous d’amitié avec 3 nouveaux compagnons grâce à vos lanternes.',
+  'Night Walkers': 'Promeneurs de nuit', 'Some companions only come out at night. Befriend a Saffrill, a Glimmerell or an Opaloom.': 'Certains compagnons ne sortent que la nuit. Liez-vous d’amitié avec un Saffrill, un Glimmerell ou un Opaloom.',
+  'The Old Lanterns': 'Les vieilles lanternes', 'Relight the 5 old lantern posts hidden around Hollow Valley.': 'Rallumez les 5 vieux lampadaires cachés dans la Vallée du Creux.',
+  'Best Friends': 'Meilleurs amis', 'Reach bond 50 with a companion: walk together, fight together and pet it.': 'Atteignez un lien de 50 avec un compagnon : marchez ensemble, combattez ensemble et caressez-le.',
+  'The Lost Drapplet': 'Le Drapplet perdu', 'A little Drapplet wandered off into Rillbank Reeds. Find it and send it home.': 'Un petit Drapplet s’est égaré dans les Roseaux du Ruisseau. Retrouvez-le et renvoyez-le chez lui.',
+  'River Friends': 'Amis de la rivière', 'Befriend a Tide companion.': 'Liez-vous d’amitié avec un compagnon Marée.',
+  'Elements Together': 'Éléments unis', "Trigger 5 type reactions: hit a foe with one type, then another (your weapon + your companion's attacks).": 'Déclenchez 5 réactions de types : frappez un ennemi avec un type, puis un autre (votre arme + les attaques de votre compagnon).',
+  'Elite Hunt': 'Chasse aux élites', 'Defeat 3 elite companions (the ones with a golden aura).': 'Battez 3 compagnons d’élite (ceux avec une aura dorée).',
+  'Lantern Shards': 'Éclats de lanterne', 'Find the 8 lantern shards hidden across the four lands. Two in each.': 'Trouvez les 8 éclats de lanterne cachés dans les quatre terres, deux dans chacune.',
+  'Defeat {n} Grove companions': 'Battez {n} compagnons Bosquet', 'Defeat {n} Tide companions': 'Battez {n} compagnons Marée', 'Defeat {n} Stone companions': 'Battez {n} compagnons Pierre',
+  'Defeat {n} wild companions': 'Battez {n} compagnons sauvages', 'Befriend {n} companions': 'Liez-vous d’amitié avec {n} compagnons', 'Make {n} perfect dodges': 'Réussissez {n} esquives parfaites',
+  'Trigger {n} type reactions': 'Déclenchez {n} réactions de types', 'Land {n} duo hits with your companion': 'Réussissez {n} coups en duo avec votre compagnon', 'Pet companions {n} times': 'Caressez des compagnons {n} fois'
+});
+Object.assign(LB.I18N.ar, {
+  'Night': 'ليل', 'Dawn': 'فجر', 'Day': 'نهار', 'Evening': 'مساء',
+  'Night falls. Some companions only come out now…': 'حلّ الليل. بعض الرفاق لا يخرجون إلا الآن…',
+  'The sun rises over the valley': 'الشمس تشرق على الوادي', 'Full daylight': 'وضح النهار', 'Evening light': 'ضوء المساء',
+  'It starts to rain…': 'بدأ المطر يهطل…', 'The wind picks up': 'الريح تشتدّ', 'A shiny {c} appeared!': 'ظهر {c} لامع نادر!',
+  'Pet': 'داعِب', 'Light': 'أشعِل', 'Open': 'افتح', 'Read': 'اقرأ', 'Use': 'استعمل',
+  'ELITE': 'نخبة', 'Sneak attack!': 'هجوم مباغت!', 'Duo!': 'ثنائي!', 'Perfect dodge!': 'تفادٍ مثالي!', 'Next hit is critical': 'الضربة التالية حرجة',
+  'Elite reward: +{n} coins, {i}': 'مكافأة النخبة: +{n} قطعة نقدية، {i}',
+  'Steam': 'بخار', 'Blaze': 'لهيب', 'Firestorm': 'عاصفة نارية', 'Mud': 'وحل', 'Sandstorm': 'عاصفة رملية', 'Storm': 'عاصفة رعدية',
+  'Pollen': 'لقاح', 'Bloom': 'إزهار', 'Magma': 'صُهارة', 'Prism': 'موشور',
+  'Bond': 'الرابط', 'Friend': 'صديقك', 'Close friend': 'صديقك المقرّب', 'Awakened': 'رفيقك المستيقظ',
+  '{c} is now your {t}!': 'أصبح {c} {t}!', 'Its special move is now BOND BURST': 'حركته الخاصة أصبحت انفجار الرابط', 'BOND BURST!': 'انفجار الرابط!',
+  'stand still next to your companion to pet it (bond ❤)': 'قف ساكنًا بجانب رفيقك لتداعبه (الرابط ❤)', 'quest log': 'سجلّ المهام',
+  'Quests': 'المهام', 'Daily challenge': 'تحدّي اليوم', 'Daily challenge complete!': 'أنجزت تحدّي اليوم!', 'Daily challenge: {t}': 'تحدّي اليوم: {t}',
+  'A new challenge is posted every day.': 'يُنشر تحدٍّ جديد كل يوم.', 'Done': 'منجز', 'Reward': 'المكافأة', 'From': 'من', 'Return to {n}': 'عُد إلى {n}',
+  'the notice board': 'لوحة الإعلانات', 'New quest: {q}': 'مهمة جديدة: {q}', 'Quest complete: {q}! Go back to {n}.': 'أُنجزت المهمة: {q}! عُد إلى {n}.',
+  'You did it: {q}!': 'لقد نجحت: {q}!', 'Here is your reward: {r}.': 'إليك مكافأتك: {r}.', 'I have a favour to ask…': 'لديّ طلب منك…',
+  'Treasure!': 'كنز!', 'Old lantern relit ({n}/5)': 'أُعيد إشعال فانوس قديم ({n}/5)', 'Lantern shard found! ({n}/8)': 'وجدت شظية فانوس! ({n}/8)',
+  'Lantern shards': 'شظايا الفوانيس', 'Chests': 'الصناديق', 'Old lanterns': 'الفوانيس القديمة', 'The Drapplet hops happily back home!': 'Drapplet يقفز فرحًا عائدًا إلى بيته!',
+  'NOTICE: Lantern shards have been seen glowing in all four lands. Whoever brings back all 8 earns a Warden Lantern.': 'إعلان: شوهدت شظايا فوانيس تتوهّج في الأراضي الأربع. من يجمع الثماني يربح فانوس الحارس.',
+  'No quests yet. Talk to villagers with a ! above their head, and read the notice board in the village.': 'لا مهام بعد. تحدّث إلى القرويين الذين فوق رؤوسهم علامة ! واقرأ لوحة الإعلانات في القرية.',
+  'First Friends': 'أصدقاء أوائل', 'Befriend 3 new companions with your lanterns.': 'صادِق 3 رفاق جدد بفوانيسك.',
+  'Night Walkers': 'سائرو الليل', 'Some companions only come out at night. Befriend a Saffrill, a Glimmerell or an Opaloom.': 'بعض الرفاق لا يخرجون إلا ليلًا. صادِق Saffrill أو Glimmerell أو Opaloom.',
+  'The Old Lanterns': 'الفوانيس القديمة', 'Relight the 5 old lantern posts hidden around Hollow Valley.': 'أعِد إشعال أعمدة الفوانيس الخمسة القديمة المخبّأة في وادي الجوف.',
+  'Best Friends': 'أعزّ الأصدقاء', 'Reach bond 50 with a companion: walk together, fight together and pet it.': 'ابلغ رابطًا قدره 50 مع رفيق: امشيا معًا وقاتلا معًا وداعِبه.',
+  'The Lost Drapplet': 'Drapplet التائه', 'A little Drapplet wandered off into Rillbank Reeds. Find it and send it home.': 'تاه Drapplet صغير في قصب الجدول. ابحث عنه وأعِده إلى بيته.',
+  'River Friends': 'أصدقاء النهر', 'Befriend a Tide companion.': 'صادِق رفيقًا من نوع المدّ.',
+  'Elements Together': 'العناصر معًا', "Trigger 5 type reactions: hit a foe with one type, then another (your weapon + your companion's attacks).": 'أطلِق 5 تفاعلات بين الأنواع: اضرب خصمًا بنوع ثم بنوع آخر (سلاحك + هجمات رفيقك).',
+  'Elite Hunt': 'صيد النخبة', 'Defeat 3 elite companions (the ones with a golden aura).': 'اهزم 3 رفاق من النخبة (ذوي الهالة الذهبية).',
+  'Lantern Shards': 'شظايا الفوانيس', 'Find the 8 lantern shards hidden across the four lands. Two in each.': 'اعثر على شظايا الفوانيس الثماني المخبّأة في الأراضي الأربع، اثنتان في كل منها.',
+  'Defeat {n} Grove companions': 'اهزم {n} من رفاق الغابة', 'Defeat {n} Tide companions': 'اهزم {n} من رفاق المدّ', 'Defeat {n} Stone companions': 'اهزم {n} من رفاق الحجر',
+  'Defeat {n} wild companions': 'اهزم {n} من الرفاق البرّيين', 'Befriend {n} companions': 'صادِق {n} رفاق', 'Make {n} perfect dodges': 'نفّذ {n} تفاديات مثالية',
+  'Trigger {n} type reactions': 'أطلِق {n} تفاعلات بين الأنواع', 'Land {n} duo hits with your companion': 'سدّد {n} ضربات ثنائية مع رفيقك', 'Pet companions {n} times': 'داعِب الرفاق {n} مرات'
+});

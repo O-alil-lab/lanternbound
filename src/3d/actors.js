@@ -109,7 +109,7 @@ export class Actor {
     this.flip = (view === 'q' || view === 's') ? (wantRight !== (native === 'R')) : false;
   }
   flash() { this.mat.userData.u.uGlow.value = 2.4; this.flashT = .09; }
-  tint(c) { this.mat.color.set(c || '#ffffff'); }
+  tint(c) { this.mat.color.set(c || this.baseTint || '#ffffff'); }
   // ---------- animation ----------
   // A paper-cut character still reads as "alive" if it has weight: a gait that
   // matches its speed, a lean into turns, a lunge when it swings and a recoil
@@ -118,7 +118,7 @@ export class Actor {
   playHurt(dur = .24) { this.hurtT = this.hurtDur = dur; }
   animate(dt, moving, yaw = 0) {
     if (this.flashT > 0) { this.flashT -= dt; if (this.flashT <= 0) this.mat.userData.u.uGlow.value = .3; }
-    this.mat.userData.u.uRim.value = this.kind === 'boss' ? .9 : this.kind === 'player' ? .35 : .2;
+    this.mat.userData.u.uRim.value = this.rim != null ? this.rim : this.kind === 'boss' ? .9 : this.kind === 'player' ? .35 : .2;
     this.clockT = (this.clockT || 0) + dt;
     const sx = this.flip ? -1 : 1;
     this.pivot.rotation.y = yaw;

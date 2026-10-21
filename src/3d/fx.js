@@ -30,7 +30,8 @@ export class FX {
     this.tex.spark = this.tex.dot;
     this.parts = []; this.pool = [];
     this.temp = []; // timed meshes (rings, trails, telegraphs)
-    this.labels = []; this.layer = document.getElementById('lb-labels');
+    this.labels = []; this.layer = document.getElementById('lb-labels'); this.emotes = [];
+    if (!document.getElementById('lb-emote-css')) { const st = document.createElement('style'); st.id = 'lb-emote-css'; st.textContent = '.emote{position:absolute;left:0;top:0;min-width:30px;height:30px;padding:0 7px;border-radius:15px;background:#f5efe2;border:2px solid #3b2f20;font:900 16px/26px Nunito,sans-serif;color:#b8692e;text-align:center;box-shadow:0 3px 0 rgba(0,0,0,.25);will-change:transform;white-space:nowrap}.emote:after{content:"";position:absolute;left:50%;bottom:-7px;margin-left:-5px;border:5px solid transparent;border-top-color:#3b2f20}.emote.pop{animation:emp .35s cubic-bezier(.3,1.6,.5,1)}@keyframes emp{from{scale:.2}to{scale:1}}'; document.head.appendChild(st); }
     this.shakeT = 0; this.shakeA = 0;
   }
   sprite(tex, color, additive) {
@@ -89,6 +90,13 @@ export class FX {
     this.scene.add(m);
     this.temp.push({ m, life: .18, max: .18, upd: k => { m.material.opacity = .75 * (1 - k); m.scale.setScalar(1 + k * .15); } });
   }
+  // speech-bubble emote that follows a character: '❤', '!', '?', '♪', 'zzz', '💦', '★', '✦'
+  emote(a, sym, dur = 1.6) {
+    if (!a || a.dead) return;
+    let e = this.emotes.find(x => x.a === a);
+    if (!e) { const el = document.createElement('div'); el.className = 'emote'; this.layer.appendChild(el); e = { a, el }; this.emotes.push(e); }
+    e.el.textContent = sym; e.life = e.max = dur; e.el.classList.remove('pop'); void e.el.offsetWidth; e.el.classList.add('pop');
+  }
   shake(amount, time = .2) { this.shakeA = Math.max(this.shakeA, amount); this.shakeT = Math.max(this.shakeT, time); }
 
   // floating DOM text above a 3D point
@@ -119,6 +127,13 @@ export class FX {
       l.life -= dt; if (l.life <= 0) { l.el.remove(); return false; }
       l.p.y += dt * 1.4; const s = this.project(l.p);
       l.el.style.transform = `translate(${s.x}px,${s.y}px) translate(-50%,-50%)`; l.el.style.opacity = Math.min(1, l.life / l.max * 2);
+      return true;
+    });
+    this.emotes = this.emotes.filter(e => {
+      e.life -= dt; if (e.life <= 0 || e.a.dead) { e.el.remove(); return false; }
+      const s = this.project(new THREE.Vector3(e.a.pos.x, e.a.h + (e.a.label ? 1.15 : .7) + (e.a.lift || 0), e.a.pos.z));
+      e.el.style.display = s.vis ? '' : 'none';
+      e.el.style.transform = `translate(${s.x}px,${s.y}px) translate(-50%,-100%)`; e.el.style.opacity = Math.min(1, e.life / .3);
       return true;
     });
     if (this.shakeT > 0) this.shakeT -= dt; else this.shakeA = 0;

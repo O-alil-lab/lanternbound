@@ -7,6 +7,10 @@ import { buildWorld, glowTexture, S, charAt, tileCenter } from './world.js';
 import { FX } from './fx.js';
 import { Post } from './post.js';
 import { Actor, loadTextures, makeWeapon, makeLantern } from './actors.js';
+import { Life } from './life.js';
+import { Combat } from './combat.js';
+import { Bond } from './bond.js';
+import { Quests } from './quests.js';
 import { initHud, showHud, updateHud, loading, titleScreen, starterScreen, hideScreen, installShop, WEAPONS } from './hud.js';
 
 const V2 = THREE.Vector2, V3 = THREE.Vector3;
@@ -36,6 +40,9 @@ class Game {
     LB.tileSize = S;                      // the teaching layer works in map tiles too
     this.world = buildWorld(this.scene, this.renderer, this.glowTex);
     this.fx = new FX(this.scene, this.camera, this.glowTex); this.stageBuilt = true;
+    this.Actor = Actor;
+    this.life = new Life(this); this.combat = new Combat(this); this.bond = new Bond(this); this.quests = new Quests(this);
+    this.mods = [this.life, this.combat, this.bond, this.quests];
     this.clock = new THREE.Clock(); this.t = 0;
     this.camTarget = new V3(12, 0, 30); this.camOff = CAM_OFF.clone();
     this.wild = []; this.shots = []; this.npcs = {}; this.player = null; this.ally = null;
@@ -86,6 +93,7 @@ class Game {
     LB.mode = 'world'; LB.world = this;
     this.lastZone = '';
     this.spawnAlpha();
+    this.stageReady();
     LB.screen.hintOrientation();
     if (isNew) setTimeout(() => this.intro(), 600);
   }
@@ -107,10 +115,11 @@ class Game {
     this.player.pos.set(c.x, 0, c.z); this.player.vel.set(0, 0); this.camTarget.set(c.x, 0, c.z);
     if (this.ally) this.ally.pos.set(c.x - 1, 0, c.z + .6);
     LB.npcs().forEach(n => { const cc = tileCenter(n.x, n.y); const a = new Actor(this, { kind: 'npc', trainer: n.who, x: cc.x, z: cc.z }); a.npc = n; this.npcs[n.id] = a; });
-    this.spawnAlpha(); this.lastZone = '';
+    this.spawnAlpha(); this.lastZone = ''; this.stageReady();
     await LB.wait(250); this.fade.style.opacity = 0; LB.mode = 'world';
     this.stageCard(st); LB.save(true);
   }
+  stageReady() { this.mods.forEach(m => m.onStage && m.onStage()); }
   stageCard(st) {
     let el = document.getElementById('lb-stagecard');
     if (!el) { el = document.createElement('div'); el.id = 'lb-stagecard'; document.body.appendChild(el); }
@@ -345,6 +354,7 @@ class Game {
   }
   damage(u, attacker, r, kb) {
     if (u.dead || u.state === 'dazed' || u.state === 'captured') return;
+    r = this.combat.beforeDamage(u, attacker, r);
     u.m.hpA = Math.max(0, u.m.hpA - r.dmg); u.flash(); u.playHurt && u.playHurt();
     const dx = u.x - attacker.x, dz = u.z - attacker.z, d = Math.hypot(dx, dz) || 1;
     u.kb.set(dx / d * kb, dz / d * kb);
@@ -358,6 +368,7 @@ class Game {
     if (u.m.hpA <= 0) this.knockOut(u);
   }
   hurtPlayer(attacker) {
+    if (this.combat.dodgeCheck(attacker)) return;
     const P = this.player; if (P.iframes > 0) return;
     if (LB.firstFight && LB.firstFight.active) {          // the first encounter teaches, it cannot hurt you
       P.iframes = 1.1; P.flash(); P.playHurt && P.playHurt();
@@ -379,7 +390,7 @@ class Game {
       setTimeout(() => { this.spawnAlly(true); if (!this.ally) LB.toast(LB.t('No companions left: run to the shrine!')); }, 300);
       u.dead = true; return;
     }
-    LB.SFX.faint();
+    LB.SFX.faint(); this.combat.onKnockOut(u); this.bond.onKnockOut(u);
     const gain = Math.floor((u.m.lvl * 10 + 8) * (u.kind === 'boss' ? 1.5 : 1)), coins = u.m.lvl * (u.kind === 'boss' ? 10 : 4);
     G.coins += coins; this.fx.text(new V3(u.x, u.h + 1.2, u.z), '+' + LB.t('{n} coins', { n: coins }), '#ffd23f', 15);
     this.giveXp(gain);
@@ -437,6 +448,7 @@ class Game {
   }
   petSpecial() {
     const a = this.ally; if (!a || this.spcCd > 0) return;
+    if (this.bond.tryBurst()) return;
     const aim = this.aimDir(9); const tgt = aim.unit; const tx = tgt ? tgt.x : aim.point.x, tz = tgt ? tgt.z : aim.point.z;
     const k = LB.specialMove(a.m.sp); this.spcCd = 4;
     this.fx.text(new V3(a.x, a.h + .6, a.z), LB.t(LB.MOVES[k].n) + '!', '#ffe7a0', 18);
@@ -466,10 +478,10 @@ class Game {
   updateAlly(dt) {
     const a = this.ally; if (!a) return;
     if (a.state === 'lunge') { this.updateLunge(a, dt, this.enemies()); return; }
-    const P = this.player, tx = P.x - this.face.x * 1.6, tz = P.z - this.face.y * 1.2 + .3;
+    const P = this.player, tx = a.playTarget ? a.playTarget.x : P.x - this.face.x * 1.6, tz = a.playTarget ? a.playTarget.z : P.z - this.face.y * 1.2 + .3;
     const d = Math.hypot(tx - a.x, tz - a.z);
     if (dist(a.pos, P.pos) > 14) { a.pos.set(P.x - 1, 0, P.z + .5); return; }
-    const sp = Math.min(9, d * 4);
+    const sp = Math.min(a.playTarget ? 3.2 : 9, d * 4);
     a.vel.set(d > .2 ? (tx - a.x) / d * sp : 0, d > .2 ? (tz - a.z) / d * sp : 0);
     this.move(a, (a.vel.x + a.kb.x) * dt, (a.vel.y + a.kb.y) * dt); a.kb.multiplyScalar(Math.pow(.02, dt));
     // fights on its own when enemies are close
@@ -494,11 +506,21 @@ class Game {
       const x = P.x + rand(-17, 17), z = P.z + rand(-14, 12), c = charAt(x, z), Z = LB.ZONES[c];
       if (!Z || Math.hypot(x - P.x, z - P.z) < 7) continue;
       let sp = Z.t[LB.rnd(0, Z.t.length - 1)]; if (sp === '*') sp = LB.STARTERS.filter(s => s !== LB.G.starter && s !== LB.rivalStarter())[0];
-      const m = LB.mk(sp, LB.rnd(Z.lv[0], Z.lv[1])); m.hpA = LB.unitMaxHp(m);
-      const u = new Actor(this, { kind: 'wild', m, x, z }); u.zoneChar = c; u.appear = 0;
-      this.fx.burst('Grove', new V3(x, .4, z), 10, .7);
-      LB.G.seen[sp] = 1; this.wild.push(u); return;
+      sp = this.life.pickSpecies(Z, sp);
+      const lvl = LB.rnd(Z.lv[0], Z.lv[1]);
+      const u = this.makeWild(sp, lvl, x, z, c, Z);
+      // herds: sometimes a second one of the same kind is close by
+      if (!u.elite && !u.m.shiny && Math.random() < .25) { const bx = x + rand(-1.6, 1.6), bz = z + rand(-1.6, 1.6); if (LB.ZONES[charAt(bx, bz)] && !this.solidAt(bx, bz)) this.makeWild(sp, Math.max(1, lvl - 1), bx, bz, c, Z); }
+      return;
     }
+  }
+  makeWild(sp, lvl, x, z, c, Z) {
+    const m = LB.mk(sp, lvl); m.hpA = LB.unitMaxHp(m);
+    const u = new Actor(this, { kind: 'wild', m, x, z }); u.zoneChar = c; u.appear = 0;
+    this.fx.burst('Grove', new V3(x, .4, z), 10, .7);
+    LB.G.seen[sp] = 1; this.wild.push(u);
+    this.life.onSpawn(u); this.combat.onSpawn(u, Z);
+    return u;
   }
   updateEnemy(u, dt) {
     if (u.vanish != null) { u.vanish -= dt; u.obj.scale.setScalar(Math.max(.01, u.vanish / .35)); if (u.vanish <= 0) { u.destroy(); this.wild.splice(this.wild.indexOf(u), 1); if (this.fight) this.fight.next(); } return; }
@@ -510,7 +532,9 @@ class Game {
       return;
     }
     if (u.state === 'gone') return;
-    u.cd -= dt;
+    if (this.combat.enemyStatus(u, dt)) return;
+    if (!u.fight && this.life.wildAI(u, dt)) return;
+    u.cd -= dt * (u.elite ? 1.5 : 1);
     if (u.spar) {
       const st = (LB.firstFight && LB.firstFight.stage) || '';
       if (st === 'approach' || st === 'strike') { u.state = 'idle'; u.vel.set(0, 0); u.cd = 1.2; return; }
@@ -532,7 +556,7 @@ class Game {
     const P = this.player, targets = [P, this.ally].filter(t => t && !t.dead);
     let tgt = null, td = u.kind === 'boss' ? 18 : u.alpha ? 11 : 7.5;
     targets.forEach(t => { const d = dist(u.pos, t.pos); if (d < td) { td = d; tgt = t; } });
-    const base = (38 + LB.statsOf(u.m).spd * 1.1) / 16 * (u.kind === 'boss' ? 1.25 : 1);
+    const base = (38 + LB.statsOf(u.m).spd * 1.1) / 16 * (u.kind === 'boss' ? 1.25 : 1) * (u.speedMul || 1) * (u.elite ? 1.15 : 1);
     let vx = 0, vz = 0;
     if (!tgt) {
       u.wanderT -= dt;
@@ -551,7 +575,7 @@ class Game {
           this.windup(u, dur, () => {
             const k = LB.basicMove(u.m.sp), col = { Ember: '#ff8a3c', Tide: '#4aa8e0', Gale: '#e8eeff', Glimmer: '#e4b8ff' }[u.t] || '#fff';
             const b = Math.atan2(tp.z - u.z, tp.x - u.x);
-            (u.kind === 'boss' ? [-.25, 0, .25] : [0]).forEach(o => this.shoot({ from: new V3(u.x, u.h * .55, u.z), dir: new V2(Math.cos(b + o), Math.sin(b + o)), speed: u.style.proj / 22, owner: u, move: k, mult: u.kind === 'boss' ? .9 : 1, type: u.t, color: col, size: .2 }));
+            (u.kind === 'boss' || u.elite ? [-.25, 0, .25] : [0]).forEach(o => this.shoot({ from: new V3(u.x, u.h * .55, u.z), dir: new V2(Math.cos(b + o), Math.sin(b + o)), speed: u.style.proj / 22, owner: u, move: k, mult: u.kind === 'boss' ? .9 : 1, type: u.t, color: col, size: .2 }));
           });
         }
       } else {
@@ -651,6 +675,7 @@ class Game {
     const first = !G.caught[m.sp]; G.caught[m.sp] = 1; if (c.u.alpha) G.alphaCaught[c.u.alpha] = 1;
     m.xp = 0; m.hpA = Math.round(LB.unitMaxHp(m) * .6); m.hp = LB.statsOf(m).hp;
     const full = G.party.length >= 6; if (!full) G.party.push(m); else G.box.push(m);
+    this.bond.onCapture(m); this.quests.emit('catch', { sp: m.sp, type: LB.MON[m.sp].t });
     this.fx.text(new V3(c.u.x, 3.3, c.u.z), LB.t('{c} joined you!', { c: m.sp }), '#ffffff', 24);
     setTimeout(() => { if (first) LB.toast(LB.t('{c} added to your journal!', { c: m.sp })); if (full) LB.toast(LB.t('{c} went to rest at the shrine (party full)', { c: m.sp })); }, 900);
     this.captureEnd(true);
@@ -697,15 +722,19 @@ class Game {
   nearInteract() {
     const P = this.player; if (!P) return null;
     for (const id in this.npcs) { const n = this.npcs[id]; if (dist(P.pos, n.pos) < 1.9) return { npc: n.npc }; }
+    const extra = [...this.quests.interactables(), ...this.life.interactables(), ...this.bond.interactables()].filter(o => dist(P.pos, o) < o.r).sort((a, b) => (b.prio || 0) - (a.prio || 0) || dist(P.pos, a) - dist(P.pos, b))[0];
+    if (extra && !(extra.prio < 0)) return { extra };
     for (const [dx, dz] of [[0, -1], [0, 1], [-1, 0], [1, 0], [0, 0]]) {
       const tx = Math.floor(P.x / S) + dx, tz = Math.floor(P.z / S) + dz, c = LB.MAP[tz] && LB.MAP[tz][tx];
       if (c && 'SMPHO'.includes(c)) { const cc = tileCenter(tx, tz); if (Math.hypot(cc.x - P.x, cc.z - P.z) < 2.1) return { tx, ty: tz, c }; }
     }
+    if (extra) return { extra };
     return null;
   }
   async interact() {
     const t = this.nearInteract(); if (!t || this.fight) return;
     this.player.vel.set(0, 0);
+    if (t.extra) { t.extra.use(); return; }
     if (t.c === 'O') { this.portalMenu(); return; }
     if (t.npc) await LB.story.interact(t.npc.x, t.npc.y); else await LB.story.interact(t.tx, t.ty);
     this.refreshNpcs(); this.spawnAllyIfChanged(); this.refreshWeapon();
@@ -729,6 +758,7 @@ class Game {
     this.camera.position.set(this.camTarget.x + ox * zoom + sh.x * cy, this.camTarget.y + this.camOff.y * zoom + sh.y, this.camTarget.z + oz * zoom - sh.x * sy);
     this.camera.lookAt(this.camTarget.x, .8, this.camTarget.z);
     this.world.update(this.t, dt, P ? P.pos : this.camTarget);
+    this.life.frame(dt);
     this.fx.update(dt);
     if (P) { [P, this.ally, ...this.wild, ...Object.values(this.npcs)].forEach(a => a && !a.dead && a.updateLabel && a.updateLabel(this.fx)); updateHud(this); this.updatePrompt(); }
     this.pressed.clear(); this.released.clear();
@@ -738,7 +768,7 @@ class Game {
     const P = this.player; let txt = '', at = null;
     if (LB.mode === 'world') {
       const ni = this.nearInteract();
-      if (ni && !this.fight) { txt = LB.touch ? 'A: ' + LB.t('Talk') : 'F: ' + LB.t('Talk'); at = new V3(P.x, 2.6, P.z); }
+      if (ni && !this.fight) { const lb = LB.t(ni.extra ? ni.extra.label : ni.c === 'O' ? 'Use' : 'Talk'); txt = (LB.touch ? 'A: ' : 'F: ') + lb; at = new V3(P.x, 2.6, P.z); }
       else { const dz = this.wild.find(u => u.state === 'dazed' && dist(P.pos, u.pos) < 10); if (dz && !this.aiming) { txt = (LB.touch ? '🏮 ' : 'E: ') + LB.t('Lantern!'); at = new V3(dz.x, dz.h + 1.2, dz.z); } }
     }
     if (!txt) { this.promptEl.style.display = 'none'; return; }
@@ -755,7 +785,8 @@ class Game {
       this.updateCapture(rdt); return;
     }
     const fresh = performance.now() - (LB.lastDialogEnd || 0) > 250;
-    const dt = this.aiming ? rdt * .35 : rdt;   // slow motion while aiming a lantern
+    if (this.slowT > 0) this.slowT -= rdt;
+    const dt = this.aiming || this.slowT > 0 ? rdt * .35 : rdt;   // slow motion while aiming a lantern or after a perfect dodge
     // --- actions ---
     if (fresh && (Pr.has('KeyF') || Pr.has('Enter') || q.includes('talk')) && this.nearInteract()) { this.interact(); return; }
     if (Pr.has('KeyE') || q.includes('lantern')) { if (this.aiming) this.throwLantern(); else this.startAim(); }
@@ -768,6 +799,7 @@ class Game {
     if ((Pr.has('Space') || Pr.has('ShiftLeft') || Pr.has('ShiftRight') || q.includes('dodge')) && fresh) this.roll();
     if (Pr.has('KeyQ') || q.includes('switch')) this.cycleAlly();
     if (Pr.has('KeyH') || q.includes('salve')) this.useSalve();
+    if (Pr.has('KeyP')) { LB.questLog && LB.questLog(); return; }
     if (Pr.has('KeyR')) { const ks = Object.keys(LB.LANTERNS).filter(k => G.items[k] > 0); if (ks.length) { G.lanternSel = ks[(ks.indexOf(G.lanternSel) + 1) % ks.length]; LB.SFX.sel(); } }
     ['Digit1', 'Digit2', 'Digit3'].forEach((d, i) => { if (Pr.has(d)) this.selectWeapon(['staff', 'sling', 'wand'][i]); });
     if (this.aiming) this.drawAim();
@@ -802,6 +834,7 @@ class Game {
     this.updateShots(dt);
     this.updateFlying(rdt);
     this.spawnWild(rdt);
+    this.life.update(dt); this.bond.update(rdt); this.quests.update(rdt);
     if (LB.firstFight) LB.firstFight.update(this, rdt);
     if (LB.coach) LB.coach.update(this, rdt);
     // music intensity: boss > combat (enemy close or hostile) > explore
@@ -813,7 +846,7 @@ class Game {
     P.animate(rdt, P.vel.length() > .6 || this.rollT > 0, this.yaw);
     if (this.ally) { this.orient(this.ally, this.ally.vel.length() > .6 ? this.ally.vel : null); this.ally.animate(dt, this.ally.vel.length() > .6, this.yaw); }
     this.wild.forEach(u => { if (u.dead || u.state === 'captured') return; this.orient(u, u.vel.length() > .4 ? u.vel : new V2(P.x - u.x, P.z - u.z)); u.animate(dt, u.vel.length() > .4, this.yaw); });
-    Object.values(this.npcs).forEach(n => { this.orient(n, dist(P.pos, n.pos) < 5 ? new V2(P.x - n.x, P.z - n.z) : null); n.animate(rdt, false, this.yaw); });
+    Object.values(this.npcs).forEach(n => { const mv = n.vel.length() > .3; this.orient(n, mv ? n.vel : dist(P.pos, n.pos) < 5 ? new V2(P.x - n.x, P.z - n.z) : null); n.animate(rdt, mv, this.yaw); });
     G.x = Math.floor(P.x / S); G.y = Math.floor(P.z / S);
     const z = LB.zoneAt(G.x, G.y); if (z !== this.lastZone) { this.lastZone = z; LB.toast(LB.t(LB.ZONE_NAMES[z])); }
   }
@@ -832,7 +865,7 @@ class Game {
   roll() {
     if (this.rollCd > 0 || this.rollT > 0) return;
     const P = this.player; this.rollDir = P.vel.length() > .5 ? P.vel.clone().normalize() : this.face.clone();
-    this.rollT = .24; this.rollCd = .75; P.iframes = .4; P.rolling = true; LB.SFX.roll(); this.fx.dust(P.pos, 6);
+    this.rollT = .24; this.rollCd = .75; P.iframes = .4; this.rollAt = this.t; P.rolling = true; LB.SFX.roll(); this.fx.dust(P.pos, 6);
   }
   updateWeaponPose(dt) {
     const w = this.weaponPivot; if (!w) return;

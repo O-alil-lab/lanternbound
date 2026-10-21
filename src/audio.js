@@ -211,6 +211,18 @@ A.setIntensity = lvl => {   // 0 explore, 1 combat, 2 boss
   A.layer.boss.gain.setTargetAtTime(lvl >= 2 ? 1 : 0, t, lvl >= 2 ? .4 : 1.6);
   A.layer.calm.gain.setTargetAtTime(lvl >= 2 ? .45 : 1, t, .8);
 };
+// rain + gusts bed, level 0..1 (wind 1 = calm)
+A.rain = (k, wind = 1) => {
+  if (!A.ready) return;
+  const ac = A.ac, t = ac.currentTime;
+  if (!A.rainBed) {
+    const mk = (type, f, q) => { const s = ac.createBufferSource(); s.buffer = A.noise; s.loop = true; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = ac.createGain(); g.gain.value = 0; s.connect(fl).connect(g).connect(A.ambBus); s.start(0, Math.random()); return g; };
+    A.rainBed = mk('highpass', 1400, .5); A.gustBed = mk('bandpass', 380, .7);
+  }
+  if (Math.abs((A.rainLv || 0) - k) > .02) { A.rainLv = k; A.rainBed.gain.setTargetAtTime(k * .12, t, .5); }
+  const gw = Math.max(0, wind - 1) * .05;
+  if (Math.abs((A.gustLv || 0) - gw) > .004) { A.gustLv = gw; A.gustBed.gain.setTargetAtTime(gw, t, .8); }
+};
 A.step = surf => {   // footstep: grass, dirt, stone, wood, water, sand
   if (!A.ready || LB.audioMode === 2) return; const t = A.ac.currentTime, o = A.sfxBus;
   if (surf === 'water') { noise(t, .14, .05, o, { type: 'bandpass', f: rnd(700, 1100), q: 1.5, fEnd: 400 }); return; }
@@ -250,6 +262,14 @@ LB.SFX = {
   roar:   () => play((t, o) => { osc('sawtooth', 110, t, 1.1, .1, o, { a: .08, d: 1.1, slide: .6, lp: 900, vib: 9 }); osc('sawtooth', 165, t, 1, .06, o, { a: .1, d: 1, slide: .55, lp: 700 }); noise(t, .9, .07, o, { f: 400, q: 1.5, fEnd: 200 }); }),
   portal: () => play((t, o) => { [0, 4, 7, 11, 14].forEach((s, i) => INST.bell(mtof(72 + s), t + i * .06, 1, .05, o)); noise(t, 1, .05, o, { f: 800, fEnd: 5000, q: 2 }); }),
   splash: () => play((t, o) => noise(t, .3, .1, o, { f: 1200, fEnd: 300, q: .8 })),
+  flutter: () => play((t, o) => { for (let i = 0; i < 6; i++) noise(t + i * .05, .04, .05, o, { f: 1800 + i * 200, q: 2 }); }),
+  shiny: () => play((t, o) => { [1318, 1760, 2093, 2637].forEach((f, i) => INST.bell(f, t + i * .07, 1, .05, o)); }),
+  pet: () => play((t, o) => { osc('sine', 660, t, .12, .05, o, { d: .12, slide: 1.3 }); osc('sine', 990, t + .1, .16, .04, o, { d: .16 }); }),
+  perfect: () => play((t, o) => { osc('sine', 1760, t, .5, .06, o, { d: .5, slide: .5 }); noise(t, .3, .05, o, { f: 3000, fEnd: 800, q: 3 }); }),
+  react: () => play((t, o) => { noise(t, .35, .12, o, { f: 600, fEnd: 2400, q: 1.5 }); osc('triangle', 330, t, .3, .06, o, { d: .3, slide: 2 }); }),
+  quest: () => play((t, o) => { [523, 659, 784, 1046].forEach((f, i) => INST.bell(f, t + i * .12, 1.2, .06, o)); INST.pad('airy', [523, 659, 784], t, 1.6, .05, o); }),
+  chest: () => play((t, o) => { osc('triangle', 220, t, .15, .08, o, { d: .15, slide: 1.5 }); [784, 988, 1175].forEach((f, i) => INST.pluck(f, t + .15 + i * .08, .3, .07, o)); }),
+  burst: () => play((t, o) => { osc('sawtooth', 110, t, 1, .1, o, { a: .02, d: 1, slide: 4, lp: 3000 }); noise(t, .8, .12, o, { f: 400, fEnd: 4000, q: 1 }); [523, 784, 1046].forEach((f, i) => INST.bell(f, t + .2 + i * .06, 1, .05, o)); }),
   step:   s => A.step(s)
 };
 
