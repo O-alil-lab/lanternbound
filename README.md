@@ -13,11 +13,19 @@ and become a Lantern Warden.
 - **Locally:** in this folder run `python3 -m http.server 8000` (or `npx serve .`) and open
   http://localhost:8000. Double-clicking `index.html` also works (Canvas mode, tints show white).
 
-| Action | Keyboard | Phone |
+| Action | Keyboard / mouse | Phone |
 | --- | --- | --- |
-| Move | Arrow keys / WASD | D-pad |
-| Talk, continue | Space / Enter | A button or tap the text |
-| Battle choices | Click or 1–8 | Tap |
+| Move | WASD / arrows | Joystick |
+| Attack (companion) | J or left-click (aims at the mouse) | A |
+| Special move | K or right-click | SP |
+| Dodge | Space / Shift | ⤳ |
+| Lantern: aim, then throw | E, then E or click (R changes lantern type) | 🏮 |
+| Capture ring | Space when the gold ring touches the circle (3 times) | any button |
+| Switch companion / salve | Q or 1–6 / H | ⇄ / 🌿 |
+| Talk | F / Enter | A near someone |
+
+Wild companions flash red right before they attack — dodge! Knock one out and it is dazed for a few
+seconds: throw a lantern and win the timing game to befriend it.
 
 ## Files
 
@@ -31,7 +39,9 @@ src/
   map.js       ★ world map + tileset painted in code
   ui.js          HTML overlays (top bar, dialog, party, journal, shop, touch pad)
   story.js     ★ dialogue and trainer battles
-  Boot.js, Preloader.js, Title.js, Starter.js, World.js, Battle.js   Phaser scenes
+  Boot.js, Preloader.js, Title.js, Starter.js   start-up scenes
+  World.js       real-time world: movement, companions, combat, lantern capture
+  Hud.js         hearts, companion card, cooldowns
   Game.js        entry: Phaser config
 assets/
   trainers/*.png, companions/*_front.png, *_back.png

@@ -12,8 +12,10 @@ const config = {
   backgroundColor: '#e9e0cc',
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   render: { antialias: true, roundPixels: true },
+  physics: { default: 'arcade', arcade: { debug: false } },
+  input: { activePointers: 3 },
   loader: { imageLoadType: 'HTMLImageElement', crossOrigin: 'anonymous' },
-  scene: [BootScene, PreloaderScene, TitleScene, StarterScene, WorldScene, BattleScene]
+  scene: [BootScene, PreloaderScene, TitleScene, StarterScene, WorldScene, HudScene]
 };
 
 // Bind the game to a top-level identifier

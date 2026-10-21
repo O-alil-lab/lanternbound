@@ -8,7 +8,10 @@ LB.story = {
     await LB.dialog([
       `Welcome to Hollow Village, ${G.player}. I'm ${R.mentor}.`,
       `${G.starter} has chosen you, and its lantern glows brighter already.`,
-      "I've given you 5 crystal lanterns. Weaken wild companions in the tall grass, then offer them a lantern.",
+      "Wild companions roam the tall grass, and they will attack you. Your companion fights where you aim.",
+      'Attack with J or left-click, use a special move with K or right-click, and dodge with Space. When a wild one flashes red, it is about to strike!',
+      "Knock a wild companion out and it gets dazed. Press E to aim a lantern, throw it, then press Space each time the golden ring touches the circle.",
+      "I've given you 5 crystal lanterns. Hit the ring three times and it joins you!",
       `${R.ranger} guards the meadow gate to the north. Show them your bond!`,
       'Rest at the shrine lantern beside the houses, and visit the Lantern Stall for special lanterns.'
     ], R.mentor);
@@ -40,7 +43,7 @@ LB.story = {
       case 'ranger':
         if (beat.ranger) { await LB.dialog(['The meadow is yours to explore. Look for Loomtails in the tall grass!'], who); return; }
         await LB.dialog(['Hold on! Nobody walks into Whisper Meadow without showing me their bond with their companion.', "Let's see what you've got!"], who);
-        if (await LB.battle(LB.rangerTeam(), { trainer: who, id: 'ranger' })) {
+        if (await LB.world.trainerFight(n, LB.rangerTeam())) {
           reward('lantern', 3);
           await LB.dialog(['Well fought! Take these 3 lanterns. The meadow is open to you now.', 'Tip: the Lantern Stall in the village sells special lanterns for coins.'], who);
         }
@@ -48,7 +51,7 @@ LB.story = {
       case 'rival':
         if (beat.rival) { await LB.dialog(["Next time I'll win. The ridge is past the reeds to the north-east."], who); return; }
         await LB.dialog([`Hey ${G.player}! I picked ${LB.rivalStarter()} because it beats yours.`, 'Nobody crosses this bridge until I say so!'], who);
-        if (await LB.battle([LB.mk('Tasselk', 7), LB.mk(LB.rivalStarter(), 8)], { trainer: who, id: 'rival' })) {
+        if (await LB.world.trainerFight(n, [LB.mk('Tasselk', 7), LB.mk(LB.rivalStarter(), 8)])) {
           reward('salve', 2);
           await LB.dialog(['Hmph… fine. Take 2 salves. Rumor says the Warden waits on top of Cairn Ridge.'], who);
         }
@@ -56,7 +59,7 @@ LB.story = {
       case 'angler':
         if (beat.angler) { await LB.dialog(["The river told me you'd grow strong. Keep going."], who); return; }
         await LB.dialog(['The current here is strong, and so are my companions. Want to test yourself?'], who);
-        if (await LB.battle([LB.mk('Rillspool', 10), LB.mk('Coralune', 11)], { trainer: who, id: 'angler' })) {
+        if (await LB.world.trainerFight(n, [LB.mk('Rillspool', 10), LB.mk('Coralune', 11)])) {
           reward('lantern', 3);
           await LB.dialog(['Like water around a stone. Take 3 lanterns.'], who);
         }
@@ -64,7 +67,7 @@ LB.story = {
       case 'warden':
         if (beat.warden) { await LB.dialog(['The lanterns of this land shine brighter with you, Warden.'], who); return; }
         await LB.dialog(['So you climbed Cairn Ridge.', 'I am the Warden of the lanterns. Show me that your companions trust you.'], who);
-        if (await LB.battle([LB.mk('Cairnib', 12), LB.mk('Glimmerell', 13), LB.mk('Nimbrook', 14)], { trainer: who, id: 'warden' })) {
+        if (await LB.world.trainerFight(n, [LB.mk('Cairnib', 12), LB.mk('Glimmerell', 13), LB.mk('Nimbrook', 14)])) {
           G.done = true; reward('warden', 1); LB.save(true);
           await LB.dialog(['…Your light is true. From today, you are a Lantern Warden too.',
             'Take this Warden Lantern. Any companion will trust its light, so save it for one you truly want.',

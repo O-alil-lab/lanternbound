@@ -41,6 +41,7 @@ class PreloaderScene extends Phaser.Scene {
     // Particle shapes (white, tinted per type at runtime)
     const g = this.make.graphics({ x: 0, y: 0, add: false });
     const make = (key, w, h, draw) => { g.clear(); g.fillStyle(0xffffff, 1); draw(g); g.generateTexture(key, w, h); };
+    make('px', 4, 4, g => g.fillRect(0, 0, 4, 4));
     make('pt_dot', 16, 16, g => g.fillCircle(8, 8, 8));
     make('pt_leaf', 24, 14, g => g.fillEllipse(12, 7, 24, 12));
     make('pt_drop', 14, 18, g => { g.fillCircle(7, 11, 7); g.fillTriangle(1, 9, 13, 9, 7, 0); });

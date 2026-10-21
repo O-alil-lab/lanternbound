@@ -115,3 +115,24 @@ LB.ZONES = {
 };
 LB.ZONE_NAMES = { meadow: 'Whisper Meadow', reeds: 'Rillbank Reeds', grove: 'Amberroot Grove', ridge: 'Cairn Ridge', village: 'Hollow Village' };
 LB.ENCOUNTER_RATE = 0.13;
+
+// ---------- Action combat ----------
+// How each type fights in real time: melee = dash into the target, shot = fire a projectile.
+LB.STYLE = {
+  Grove:   { kind: 'melee', proj: 0 },
+  Stone:   { kind: 'melee', proj: 0 },
+  Ember:   { kind: 'shot',  proj: 230 },
+  Tide:    { kind: 'shot',  proj: 210 },
+  Gale:    { kind: 'shot',  proj: 280 },
+  Glimmer: { kind: 'shot',  proj: 240 },
+  Plain:   { kind: 'melee', proj: 0 }
+};
+// On-screen size of each companion in the world (1 = 44 px tall)
+LB.SIZE = {
+  Hearthusk: 1.3, Cairnib: 1.2, Nimbrook: 1.25, Bellmoss: 1.15, Opaloom: 1.15, Velouray: 1.1, Clatterbud: 1.15,
+  Tasselk: 1.1, Rillspool: 1.05, Coralune: 1, Glimmerell: 1, Puddlewick: .95, Loomtail: .95, Saffrill: 1,
+  Bristlefin: .95, Tumblefen: .9, Quillora: .9, Drapplet: .85
+};
+LB.MAX_HEARTS = 5;
+LB.WILD_CAP = 5;          // wild companions roaming at once
+LB.DAZE_TIME = 9000;      // ms a weakened wild companion stays catchable
