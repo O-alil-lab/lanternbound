@@ -6,9 +6,6 @@ JavaScript, no build step. Six trainers, eighteen companions drawn as paper-styl
 
 **Play:** https://o-alil-lab.github.io/lanternbound/ (GitHub Pages)
 
-**Also here:** *Wild Survey*, a separate turn-based game with the same 24 characters —
-https://o-alil-lab.github.io/lanternbound/wild-survey/ (source in `wild-survey/source/`).
-
 - Real-time fights: your companion follows you and fights; wild companions roam the tall grass and
   attack — a red shape on the ground shows where they will strike, roll away!
 - Three weapons: **Crystal Staff** (3-hit combo), **Sling** (Stone type), **Crystal Wand** (hold to
